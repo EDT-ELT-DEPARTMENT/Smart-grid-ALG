@@ -5,6 +5,7 @@ import random
 import io
 from datetime import datetime
 from xhtml2pdf import pisa
+import streamlit.components.v1 as components
 
 # --- CONFIGURATION DE LA PAGE ---
 st.set_page_config(page_title="Plateforme de gestion des EDTs-S2-2026", layout="wide")
@@ -13,16 +14,12 @@ st.set_page_config(page_title="Plateforme de gestion des EDTs-S2-2026", layout="
 def init_db():
     conn = sqlite3.connect('monitoring_energie.db')
     c = conn.cursor()
-    # Création de la table avec la colonne client_id
     c.execute("CREATE TABLE IF NOT EXISTS mesures (timestamp DATETIME, type_energie TEXT, valeur_actuelle REAL, total_jour REAL, client_id TEXT)")
-    
-    # Vérification de la structure pour éviter les erreurs de colonne (si base existante ancienne)
     c.execute("PRAGMA table_info(mesures)")
     columns = [row[1] for row in c.fetchall()]
     if 'client_id' not in columns:
         c.execute("DROP TABLE mesures")
         c.execute("CREATE TABLE mesures (timestamp DATETIME, type_energie TEXT, valeur_actuelle REAL, total_jour REAL, client_id TEXT)")
-    
     conn.commit()
     conn.close()
 
@@ -37,22 +34,19 @@ CLIENTS = {
 
 # --- NAVIGATION ---
 st.sidebar.title("Navigation")
-# Titre demandé rappelé à chaque fois
 st.sidebar.markdown("**Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA**")
 
 selected_id = st.sidebar.selectbox("Choisir un abonné :", list(CLIENTS.keys()))
 client_info = CLIENTS[selected_id]
 page = st.sidebar.radio("Navigation", ["Facturation", "Supervision Temps Réel"])
 
-# --- FONCTION DE RÉCUPÉRATION DES DONNÉES ---
+# --- FONCTION DE RÉCUPÉRATION ---
 def get_live_data(client_id, type_energie):
     conn = sqlite3.connect('monitoring_energie.db')
     query = "SELECT total_jour FROM mesures WHERE type_energie=? AND client_id=? ORDER BY timestamp DESC LIMIT 1"
     df = pd.read_sql_query(query, conn, params=(type_energie, client_id))
     conn.close()
-    if not df.empty:
-        return df['total_jour'].iloc[0]
-    return 0.0
+    return df['total_jour'].iloc[0] if not df.empty else 0.0
 
 # --- PAGE 1 : FACTURATION ---
 def page_facturation(client_id, info):
@@ -62,11 +56,10 @@ def page_facturation(client_id, info):
     conso_elec = get_live_data(client_id, "Elec")
     conso_gaz = get_live_data(client_id, "Gaz")
 
-    # Calcul Électricité (3 Tranches)
+    # Calcul Électricité
     qte_e1 = min(conso_elec, 125.0)
     qte_e2 = max(0, min(conso_elec - 125.0, 125.0))
     qte_e3 = max(0, conso_elec - 250.0)
-    
     data_elec = [
         {"tranche": "Tranche 1", "qte": qte_e1, "prix": 1.7787, "mt": qte_e1 * 1.7787},
         {"tranche": "Tranche 2", "qte": qte_e2, "prix": 4.1789, "mt": qte_e2 * 4.1789},
@@ -74,11 +67,10 @@ def page_facturation(client_id, info):
     ]
     ht_elec = sum([i['mt'] for i in data_elec])
 
-    # Calcul Gaz (3 Tranches)
+    # Calcul Gaz
     qte_g1 = min(conso_gaz, 1125.0)
     qte_g2 = max(0, min(conso_gaz - 1125.0, 1375.0))
     qte_g3 = max(0, conso_gaz - 2500.0)
-    
     data_gaz = [
         {"tranche": "Tranche 1", "qte": qte_g1, "prix": 0.1682, "mt": qte_g1 * 0.1682},
         {"tranche": "Tranche 2", "qte": qte_g2, "prix": 0.3245, "mt": qte_g2 * 0.3245},
@@ -87,32 +79,25 @@ def page_facturation(client_id, info):
     ht_gaz = sum([i['mt'] for i in data_gaz])
 
     # Totaux
-    redevance, tva_9, tva_19, droit, taxe = 164.16, 138.99, 301.19, 200.0, 200.0
-    taxes_fixes = redevance + tva_9 + tva_19 + droit + taxe
+    taxes_fixes = 164.16 + 138.99 + 301.19 + 200.0 + 200.0
     total_ht = ht_elec + ht_gaz
     net_ttc = total_ht + taxes_fixes
 
-    # Affichage HTML
+    # Construction HTML
     facture_html = f"""
-    <html>
-    <head><meta http-equiv="Content-Type" content="text/html; charset=utf-8" /></head>
-    <body>
-    <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ccc;">
+    <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ccc; background-color: white;">
         <h2>SONELGAZ - Détail de Facturation</h2>
         <p><strong>Abonné :</strong> {info['nom']} | <strong>Lieu :</strong> {info['lieu']}</p>
-        
         <h3>Électricité</h3>
         <table border="1" style="width:100%; border-collapse: collapse;">
             <tr><th>Tranche</th><th>Quantité</th><th>Prix Unitaire</th><th>Montant HT</th></tr>
             {"".join([f"<tr><td>{i['tranche']}</td><td>{i['qte']:.2f}</td><td>{i['prix']:.4f}</td><td>{i['mt']:.2f}</td></tr>" for i in data_elec])}
         </table>
-        
         <h3>Gaz</h3>
         <table border="1" style="width:100%; border-collapse: collapse;">
             <tr><th>Tranche</th><th>Quantité</th><th>Prix Unitaire</th><th>Montant HT</th></tr>
             {"".join([f"<tr><td>{i['tranche']}</td><td>{i['qte']:.2f}</td><td>{i['prix']:.4f}</td><td>{i['mt']:.2f}</td></tr>" for i in data_gaz])}
         </table>
-        
         <div style="margin-top: 20px;">
             <p><strong>Total HT Électricité :</strong> {ht_elec:.2f} DA</p>
             <p><strong>Total HT Gaz :</strong> {ht_gaz:.2f} DA</p>
@@ -121,9 +106,10 @@ def page_facturation(client_id, info):
             <h2 style="color: #2980b9;">NET À PAYER (TTC) : {net_ttc:.2f} DA</h2>
         </div>
     </div>
-    </body></html>
     """
-    st.markdown(facture_html, unsafe_allow_html=True)
+    
+    # Rendu propre du HTML via le composant
+    components.html(facture_html, height=700, scrolling=True)
 
     # Téléchargement
     def generate_pdf(html):
@@ -160,7 +146,6 @@ def page_supervision(client_id, info):
         elec_data = df[df['type_energie'] == 'Elec'].iloc[0]
         gaz_data = df[df['type_energie'] == 'Gaz'].iloc[0]
 
-        # Graphiques
         col1, col2 = st.columns(2)
         with col1:
             st.markdown("### ⚡ Électricité")
@@ -169,7 +154,6 @@ def page_supervision(client_id, info):
             st.markdown("### 🔥 Gaz")
             st.line_chart(df[df['type_energie'] == 'Gaz'].set_index('timestamp')['valeur_actuelle'])
 
-        # Progress bars Elec
         st.divider()
         st.subheader("Tranches Électricité")
         c1, c2, c3 = st.columns(3)
@@ -178,7 +162,6 @@ def page_supervision(client_id, info):
         c2.progress(min(max((conso_e-125)/125.0, 0), 1.0), text=f"T2 (125 kWh): {min(max((conso_e-125)/1.25, 0), 100):.1f}%")
         c3.progress(min(max((conso_e-250)/1000.0, 0), 1.0), text=f"T3 (Supp): {max((conso_e-250)/10, 0):.1f}%")
 
-        # Progress bars Gaz
         st.subheader("Tranches Gaz")
         g1, g2, g3 = st.columns(3)
         conso_g = gaz_data['total_jour']
