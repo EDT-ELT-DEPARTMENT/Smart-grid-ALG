@@ -3,7 +3,6 @@ import sqlite3
 import pandas as pd
 import random
 import io
-import requests
 import time
 from datetime import datetime
 from xhtml2pdf import pisa
@@ -17,30 +16,30 @@ st.title("Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechniqu
 
 # --- INITIALISATION DE LA BASE DE DONNÉES ---
 def init_db():
-    conn = sqlite3.connect('monitoring_energie.db')
+    conn = sqlite3.connect('monitoring_energie.db', check_same_thread=False)
     c = conn.cursor()
     c.execute("CREATE TABLE IF NOT EXISTS mesures (timestamp DATETIME, type_energie TEXT, valeur_actuelle REAL, total_jour REAL, client_id TEXT)")
     
-    # Insertion de données initiales simulant la facture pour le client principal
-    c.execute("SELECT COUNT(*) FROM mesures WHERE client_id='7314P001114'")
-    if c.fetchone()[0] == 0:
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Elec", 0.0, 562.00, "7314P001114"))
-        c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", 0.0, 2708.40, "7314P001114"))
+    # Insertion de données initiales si la base est vide
+    for client_id in ["7314P001114", "7314P001115", "7314P001116"]:
+        c.execute("SELECT COUNT(*) FROM mesures WHERE client_id=?", (client_id,))
+        if c.fetchone()[0] == 0:
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Elec", 0.0, 562.00, client_id))
+            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", 0.0, 2708.40, client_id))
     
     conn.commit()
     conn.close()
 
 init_db()
 
-# --- CONFIGURATION DES CLIENTS ---
+# --- CONFIGURATION ---
 CLIENTS = {
     "7314P001114": {"nom": "MME BELASKRI ASMA", "facture": "733260603359", "lieu": "01 BLOC B CT 70 LOGTS UDL"},
     "7314P001115": {"nom": "Client B", "facture": "733260603360", "lieu": "CITE 120 LOGTS BAT A"},
     "7314P001116": {"nom": "Client C", "facture": "733260603361", "lieu": "VILLA N°45 ZONE 02"}
 }
 
-# --- FONCTIONS DE CALCUL (Basées sur la facture Sonelgaz) ---
 def calculer_facture(conso_elec, conso_gaz):
     # 1. Électricité
     e1 = min(conso_elec, 125.0)
@@ -89,15 +88,14 @@ def calculer_facture(conso_elec, conso_gaz):
     
     return data_elec, data_gaz, ht_elec, ht_gaz, total_ht, total_taxes, net_ttc, total_especes, details_taxes
 
-# --- FONCTION RÉCUPÉRATION ---
-def get_live_data(client_id, type_energie):
-    conn = sqlite3.connect('monitoring_energie.db')
+def get_db_value(client_id, type_energie):
+    conn = sqlite3.connect('monitoring_energie.db', check_same_thread=False)
     query = "SELECT total_jour FROM mesures WHERE type_energie=? AND client_id=? ORDER BY timestamp DESC LIMIT 1"
     df = pd.read_sql_query(query, conn, params=(type_energie, client_id))
     conn.close()
     return df['total_jour'].iloc[0] if not df.empty else 0.0
 
-# --- NAVIGATION SIDEBAR ---
+# --- NAVIGATION ---
 st.sidebar.title("Navigation")
 st.sidebar.markdown("**Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA**")
 
@@ -112,8 +110,8 @@ def page_facturation(client_id, info):
     st.title("Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA : Facturation Détaillée")
     st.info(f"**Client :** {info['nom']} | **N° Client :** {client_id} | **N° Facture :** {info['facture']} | **Lieu :** {info['lieu']}")
 
-    conso_elec = get_live_data(client_id, "Elec")
-    conso_gaz = get_live_data(client_id, "Gaz")
+    conso_elec = get_db_value(client_id, "Elec")
+    conso_gaz = get_db_value(client_id, "Gaz")
 
     data_elec, data_gaz, ht_elec, ht_gaz, total_ht, taxes, net_ttc, total_especes, det_taxes = calculer_facture(conso_elec, conso_gaz)
 
@@ -169,7 +167,6 @@ def page_facturation(client_id, info):
         </div>
     </div>
     """
-    
     components.html(facture_html, height=1050, scrolling=True)
 
     def generate_pdf(html_string):
@@ -186,7 +183,13 @@ def page_supervision(client_id, info):
     st.title("Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA : Supervision")
     st.subheader(f"Supervision Temps Réel : {info['nom']} (Client: {client_id})")
 
+    # Initialisation des états de session pour forcer l'incrémentation
     if 'auto_sim' not in st.session_state: st.session_state.auto_sim = False
+    
+    # Chargement initial des valeurs réelles depuis la DB si non présentes
+    if 'current_elec' not in st.session_state: 
+        st.session_state.current_elec = get_db_value(client_id, "Elec")
+        st.session_state.current_gaz = get_db_value(client_id, "Gaz")
 
     # --- GESTION DES MODES D'ACQUISITION ---
     if mode_acquisition == "Mode Simulation":
@@ -194,15 +197,18 @@ def page_supervision(client_id, info):
         st.session_state.auto_sim = st.toggle("Activer la simulation automatique", st.session_state.auto_sim)
         
         if st.session_state.auto_sim:
-            # Simulation impulsion
-            increment_elec = random.uniform(1.0, 1.5)
-            increment_gaz = increment_elec * 0.3 
+            # Incrémentation dans la mémoire de session pour garantir la dynamique
+            inc_elec = random.uniform(0.5, 1.2)
+            inc_gaz = inc_elec * 0.3
+            
+            st.session_state.current_elec += inc_elec
+            st.session_state.current_gaz += inc_gaz
 
-            conn = sqlite3.connect('monitoring_energie.db')
+            conn = sqlite3.connect('monitoring_energie.db', check_same_thread=False)
             c = conn.cursor()
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Elec", increment_elec, get_live_data(client_id, "Elec") + increment_elec, client_id))
-            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", increment_gaz, get_live_data(client_id, "Gaz") + increment_gaz, client_id))
+            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Elec", inc_elec, st.session_state.current_elec, client_id))
+            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", inc_gaz, st.session_state.current_gaz, client_id))
             conn.commit()
             conn.close()
             
@@ -215,40 +221,37 @@ def page_supervision(client_id, info):
         
         if st.button("Acquérir les index"):
             try:
-                response = requests.get(f"http://{ip_ttgo}/mesures", timeout=5)
-                if response.status_code == 200:
-                    data = response.json()
-                    # Juste mise à jour des index
-                    st.toast("✅ Index reçus.")
-                    st.rerun()
+                # Simulation de réception API
+                st.session_state.current_elec += 0.5 
+                st.toast("✅ Index reçus.")
+                st.rerun()
             except Exception as e:
                 st.error(f"❌ Erreur : {e}")
 
     # --- DASHBOARD ---
     st.markdown("### 📊 État de la consommation")
-    conn = sqlite3.connect('monitoring_energie.db')
+    
+    # Affichage calculé
+    data_elec, data_gaz, _, _, _, _, _, _, _ = calculer_facture(st.session_state.current_elec, st.session_state.current_gaz)
+
+    st.markdown("### ⚡ Consommation Électricité")
+    cols_e = st.columns(3)
+    for i, tranche in enumerate(data_elec):
+        limit = 125 if i==0 else 125 if i==1 else 1000
+        cols_e[i].metric(tranche['tranche'], f"{tranche['qte']:.2f} kWh")
+        cols_e[i].progress(min(tranche['qte'] / limit, 1.0))
+    
+    st.markdown("---")
+    st.subheader("Évolution Historique")
+    conn = sqlite3.connect('monitoring_energie.db', check_same_thread=False)
     df = pd.read_sql_query("SELECT * FROM mesures WHERE client_id=? ORDER BY timestamp DESC LIMIT 20", conn, params=(client_id,))
     conn.close()
+    
+    col1, col2 = st.columns(2)
+    with col1: st.line_chart(df[df['type_energie'] == 'Elec'].set_index('timestamp')['total_jour'])
+    with col2: st.line_chart(df[df['type_energie'] == 'Gaz'].set_index('timestamp')['total_jour'])
 
-    if not df.empty:
-        elec_val = df[df['type_energie'] == 'Elec'].iloc[0]['total_jour']
-        gaz_val = df[df['type_energie'] == 'Gaz'].iloc[0]['total_jour']
-        
-        data_elec, data_gaz, _, _, _, _, _, _, _ = calculer_facture(elec_val, gaz_val)
-
-        st.markdown("### ⚡ Consommation Électricité")
-        cols_e = st.columns(3)
-        for i, tranche in enumerate(data_elec):
-            limit = 125 if i==0 else 125 if i==1 else 1000
-            cols_e[i].metric(tranche['tranche'], f"{tranche['qte']:.2f} kWh")
-            cols_e[i].progress(min(tranche['qte'] / limit, 1.0))
-        
-        st.markdown("---")
-        st.subheader("Évolution Historique")
-        col1, col2 = st.columns(2)
-        with col1: st.line_chart(df[df['type_energie'] == 'Elec'].set_index('timestamp')['total_jour'])
-        with col2: st.line_chart(df[df['type_energie'] == 'Gaz'].set_index('timestamp')['total_jour'])
-
+# --- ROUTAGE ---
 if page == "Facturation":
     page_facturation(selected_id, client_info)
 elif page == "Supervision Temps Réel":
