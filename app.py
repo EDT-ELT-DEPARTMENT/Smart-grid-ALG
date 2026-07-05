@@ -188,13 +188,11 @@ def page_supervision(client_id, info):
     st.title("Smart-Grid SONELGAZ : Supervision Temps Réel")
     st.subheader(f"Supervision Temps Réel : {info['nom']} (Client: {client_id})")
 
-    # Initialisation des variables Smart-Grid dans session_state si absentes
     if 'tension' not in st.session_state: st.session_state.tension = 230.0
     if 'courant' not in st.session_state: st.session_state.courant = 0.0
     if 'cos_phi' not in st.session_state: st.session_state.cos_phi = 0.95
     if 'puissance_kw' not in st.session_state: st.session_state.puissance_kw = 0.0
 
-    # --- GESTION DES MODES D'ACQUISITION ---
     if mode_acquisition == "Mode Simulation":
         st.info("🔧 **Mode Simulation** : Génération de valeurs aléatoires pour simuler la consommation et le réseau.")
         
@@ -224,7 +222,6 @@ def page_supervision(client_id, info):
                 
                 if response.status_code == 200:
                     data = response.json()
-                    
                     st.session_state.tension = float(data.get('v', 230.0))
                     st.session_state.courant = float(data.get('i', 0.0))
                     st.session_state.cos_phi = float(data.get('pf', 0.95))
@@ -247,7 +244,6 @@ def page_supervision(client_id, info):
             except Exception as e:
                 st.error(f"❌ Erreur lors de la connexion : {e}")
 
-    # --- DASHBOARD SMART-GRID ---
     st.markdown("### 📊 État du Réseau Électrique (Smart-Grid)")
     col_grid1, col_grid2, col_grid3, col_grid4 = st.columns(4)
     col_grid1.metric("⚡ Tension", f"{st.session_state.tension:.1f} V")
@@ -256,7 +252,6 @@ def page_supervision(client_id, info):
     col_grid4.metric("📈 Puissance", f"{st.session_state.puissance_kw:.2f} kW")
     st.divider()
 
-    # --- AFFICHAGE DES DONNÉES DE CONSOMMATION ---
     conn = sqlite3.connect('monitoring_energie.db')
     df = pd.read_sql_query("SELECT * FROM mesures WHERE client_id=? ORDER BY timestamp DESC LIMIT 20", conn, params=(client_id,))
     conn.close()
@@ -267,7 +262,6 @@ def page_supervision(client_id, info):
 
         data_elec, data_gaz, _, _, _, _, _, _, _ = calculer_facture(elec_val, gaz_val)
 
-        # Tranches Électricité
         st.markdown("### ⚡ Consommation Électricité par Tranche")
         cols_e = st.columns(3)
         for i, tranche in enumerate(data_elec):
@@ -276,8 +270,6 @@ def page_supervision(client_id, info):
             cols_e[i].progress(min(tranche['qte'] / limit, 1.0))
 
         st.markdown("---")
-
-        # Tranches Gaz
         st.markdown("### 🔥 Consommation Gaz par Tranche")
         cols_g = st.columns(3)
         for i, tranche in enumerate(data_gaz):
@@ -286,7 +278,6 @@ def page_supervision(client_id, info):
             cols_g[i].progress(min(tranche['qte'] / limit, 1.0))
 
         st.markdown("---")
-        
         st.subheader("Évolution Historique (Dernières lectures)")
         col1, col2 = st.columns(2)
         with col1: 
@@ -298,7 +289,6 @@ def page_supervision(client_id, info):
     else: 
         st.warning("Données indisponibles.")
 
-# --- ROUTAGE ---
 if page == "Facturation":
     page_facturation(selected_id, client_info)
 elif page == "Supervision Temps Réel":
