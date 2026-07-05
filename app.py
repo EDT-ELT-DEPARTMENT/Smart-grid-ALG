@@ -10,10 +10,10 @@ from xhtml2pdf import pisa
 import streamlit.components.v1 as components
 
 # --- CONFIGURATION DE LA PAGE ---
-st.set_page_config(page_title="", layout="wide")
+st.set_page_config(page_title="Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA", layout="wide")
 
 # --- TITRE DE LA PLATEFORME ---
-st.title("")
+st.title("Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA")
 
 # --- INITIALISATION DE LA BASE DE DONNÉES ---
 def init_db():
@@ -25,7 +25,6 @@ def init_db():
     c.execute("SELECT COUNT(*) FROM mesures WHERE client_id='7314P001114'")
     if c.fetchone()[0] == 0:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        # Injection des valeurs de la facture (562 kWh et 2708.40 Th)
         c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Elec", 0.0, 562.00, "7314P001114"))
         c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", 0.0, 2708.40, "7314P001114"))
     
@@ -65,7 +64,7 @@ def calculer_facture(conso_elec, conso_gaz):
     ]
     ht_gaz = sum([i['mt'] for i in data_gaz])
     
-    # 3. Taxes et Redevances Exactes
+    # 3. Taxes et Redevances
     redevance_fixe_ht = 164.16
     tva_9 = 138.99 
     tva_19 = 301.19
@@ -76,7 +75,6 @@ def calculer_facture(conso_elec, conso_gaz):
     total_ht = ht_elec + ht_gaz
     total_taxes = redevance_fixe_ht + tva_9 + tva_19 + droit_fixe + taxe_habitation
     
-    # Net à payer et espèces
     net_ttc = total_ht + total_taxes
     total_especes = net_ttc + timbre
     
@@ -101,7 +99,7 @@ def get_live_data(client_id, type_energie):
 
 # --- NAVIGATION SIDEBAR ---
 st.sidebar.title("Navigation")
-st.sidebar.markdown("****")
+st.sidebar.markdown("**Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA**")
 
 selected_id = st.sidebar.selectbox("Choisir un abonné :", list(CLIENTS.keys()))
 client_info = CLIENTS[selected_id]
@@ -188,29 +186,15 @@ def page_supervision(client_id, info):
     st.title("Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA : Supervision")
     st.subheader(f"Supervision Temps Réel : {info['nom']} (Client: {client_id})")
 
-    # Initialisation session state
-    if 'tension' not in st.session_state: st.session_state.tension = 230.0
-    if 'courant' not in st.session_state: st.session_state.courant = 0.0
-    if 'cos_phi' not in st.session_state: st.session_state.cos_phi = 0.95
-    if 'puissance_kw' not in st.session_state: st.session_state.puissance_kw = 0.0
     if 'auto_sim' not in st.session_state: st.session_state.auto_sim = False
 
     # --- GESTION DES MODES D'ACQUISITION ---
     if mode_acquisition == "Mode Simulation":
-        st.info("🔧 **Mode Simulation** : Génération dynamique (1.0 à 1.5 kWh/h).")
-        
-        # Toggle pour simulation automatique
+        st.info("🔧 **Mode Simulation** : Comptage des impulsions (consommation dynamique).")
         st.session_state.auto_sim = st.toggle("Activer la simulation automatique", st.session_state.auto_sim)
         
         if st.session_state.auto_sim:
-            st.warning("Simulation en cours... La page se rafraîchira automatiquement.")
-            
-            # Logique dynamique
-            st.session_state.tension = random.uniform(220.0, 240.0)
-            st.session_state.courant = random.uniform(1.0, 15.0)
-            st.session_state.cos_phi = random.uniform(0.85, 1.0)
-            st.session_state.puissance_kw = (st.session_state.tension * st.session_state.courant * st.session_state.cos_phi) / 1000
-
+            # Simulation impulsion
             increment_elec = random.uniform(1.0, 1.5)
             increment_gaz = increment_elec * 0.3 
 
@@ -222,11 +206,11 @@ def page_supervision(client_id, info):
             conn.commit()
             conn.close()
             
-            time.sleep(2) # Intervalle de rafraîchissement
+            time.sleep(1) 
             st.rerun()
             
     elif mode_acquisition == "Mode Réel (Carte TTGO)":
-        st.success("📡 **Mode Réel (IoT)** : Communication TTGO active.")
+        st.success("📡 **Mode Réel (IoT)** : Réception impulsions TTGO.")
         ip_ttgo = st.text_input("Adresse IP TTGO :", "192.168.1.50")
         
         if st.button("Acquérir les index"):
@@ -234,23 +218,14 @@ def page_supervision(client_id, info):
                 response = requests.get(f"http://{ip_ttgo}/mesures", timeout=5)
                 if response.status_code == 200:
                     data = response.json()
-                    st.session_state.tension = float(data.get('v', 230.0))
-                    # Mise à jour DB... (code inchangé)
-                    st.toast("✅ Données acquises.")
+                    # Juste mise à jour des index
+                    st.toast("✅ Index reçus.")
                     st.rerun()
             except Exception as e:
                 st.error(f"❌ Erreur : {e}")
 
-    # --- DASHBOARD SMART-GRID ---
-    st.markdown("### 📊 État du Réseau")
-    col_grid1, col_grid2, col_grid3, col_grid4 = st.columns(4)
-    col_grid1.metric("⚡ Tension", f"{st.session_state.tension:.1f} V")
-    col_grid2.metric("🔌 Courant", f"{st.session_state.courant:.2f} A")
-    col_grid3.metric("📐 Cos $\phi$", f"{st.session_state.cos_phi:.2f}")
-    col_grid4.metric("📈 Puissance", f"{st.session_state.puissance_kw:.2f} kW")
-    st.divider()
-
-    # --- AFFICHAGE DES DONNÉES ---
+    # --- DASHBOARD ---
+    st.markdown("### 📊 État de la consommation")
     conn = sqlite3.connect('monitoring_energie.db')
     df = pd.read_sql_query("SELECT * FROM mesures WHERE client_id=? ORDER BY timestamp DESC LIMIT 20", conn, params=(client_id,))
     conn.close()
@@ -258,6 +233,7 @@ def page_supervision(client_id, info):
     if not df.empty:
         elec_val = df[df['type_energie'] == 'Elec'].iloc[0]['total_jour']
         gaz_val = df[df['type_energie'] == 'Gaz'].iloc[0]['total_jour']
+        
         data_elec, data_gaz, _, _, _, _, _, _, _ = calculer_facture(elec_val, gaz_val)
 
         st.markdown("### ⚡ Consommation Électricité")
