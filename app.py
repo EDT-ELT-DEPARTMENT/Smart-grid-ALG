@@ -1,41 +1,45 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
+import time
 import random
 import io
 from datetime import datetime
 from xhtml2pdf import pisa
 
+# --- CONFIGURATION DE LA PAGE ---
+st.set_page_config(page_title="SONELGAZ - Plateforme", layout="wide")
+
+# --- INITIALISATION DES BASES DE DONNÉES ---
+def init_db():
+    conn = sqlite3.connect('monitoring_energie.db')
+    c = conn.cursor()
+    # Vérification de la structure de la table pour éviter les erreurs de colonne
+    c.execute("CREATE TABLE IF NOT EXISTS mesures (timestamp DATETIME, type_energie TEXT, valeur_actuelle REAL, total_jour REAL, client_id TEXT)")
+    
+    # Vérification si la colonne client_id existe, sinon on recrée la table
+    c.execute("PRAGMA table_info(mesures)")
+    columns = [row[1] for row in c.fetchall()]
+    if 'client_id' not in columns:
+        c.execute("DROP TABLE mesures")
+        c.execute("CREATE TABLE mesures (timestamp DATETIME, type_energie TEXT, valeur_actuelle REAL, total_jour REAL, client_id TEXT)")
+    
+    conn.commit()
+    conn.close()
+
+init_db()
+
 # --- CONFIGURATION DES DONNÉES ---
-# Dictionnaire des abonnés
 CLIENTS = {
     "7314P001114": {"nom": "MILOUA Farid", "facture": "733260603359", "lieu": "01 BLOC B CT 70 LOGTS UDL"},
     "7314P001115": {"nom": "BENI Ali", "facture": "733260603360", "lieu": "CITE 120 LOGTS BAT A"},
     "7314P001116": {"nom": "KADI Sarah", "facture": "733260603361", "lieu": "VILLA N°45 ZONE 02"}
 }
 
-# --- CONFIGURATION DE LA PAGE ---
-st.set_page_config(page_title="SONELGAZ - Plateforme", layout="wide")
-
-# --- INITIALISATION DE LA BASE DE DONNÉES ---
-def init_db():
-    conn = sqlite3.connect('monitoring_energie.db')
-    c = conn.cursor()
-    # Ajout de la colonne client_id pour différencier les abonnés
-    c.execute('''CREATE TABLE IF NOT EXISTS mesures 
-                 (timestamp DATETIME, type_energie TEXT, valeur_actuelle REAL, total_jour REAL, client_id TEXT)''')
-    conn.commit()
-    conn.close()
-
-init_db()
-
 # --- NAVIGATION ---
 st.sidebar.title("Plateforme SONELGAZ")
-
-# Sélecteur d'abonné dans la barre latérale
 selected_id = st.sidebar.selectbox("Choisir un abonné :", list(CLIENTS.keys()))
 client_info = CLIENTS[selected_id]
-
 page = st.sidebar.radio("Navigation", ["Facturation", "Supervision Temps Réel"])
 
 # --- FONCTION DE CALCUL DYNAMIQUE ---
@@ -51,7 +55,7 @@ def get_live_data(client_id):
 # --- PAGE 1 : FACTURATION ---
 def page_facturation(client_id, info):
     st.title("Plateforme de Facturation SONELGAZ")
-    st.subheader(f"Direction de Distribution SIDI BEL ABBES")
+    st.subheader("Direction de Distribution SIDI BEL ABBES")
 
     total_conso = get_live_data(client_id)
     
@@ -87,15 +91,24 @@ def page_facturation(client_id, info):
     """
     st.markdown(facture_html, unsafe_allow_html=True)
 
+    col1, col2 = st.columns(2)
+    col1.download_button("Télécharger HTML", facture_html, "facture.html", "text/html")
+    def generate_pdf(html):
+        result = io.BytesIO()
+        pisa.CreatePDF(io.BytesIO(html.encode("UTF-8")), dest=result)
+        return result.getvalue()
+    col2.download_button("Télécharger PDF", generate_pdf(facture_html), "facture.pdf", "application/pdf")
+
 # --- PAGE 2 : SUPERVISION ---
 def page_supervision(client_id, info):
-    st.title("Supervision Énergétique Temps Réel")
+    st.title("Système de Supervision Énergétique - SONELGAZ")
     st.subheader(f"Client : {info['nom']} | ID : {client_id}")
 
     def add_simulated_data(c_id):
         conn = sqlite3.connect('monitoring_energie.db')
         c = conn.cursor()
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # Inserer 5 colonnes maintenant
         c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Elec", random.uniform(1.0, 4.0), random.uniform(50, 300), c_id))
         c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", random.uniform(0.5, 1.5), random.uniform(5, 20), c_id))
         conn.commit()
@@ -111,17 +124,17 @@ def page_supervision(client_id, info):
     if not df.empty:
         col1, col2 = st.columns(2)
         with col1:
-            st.markdown("### ⚡ Électricité")
+            st.markdown("<h2 style='color: #2980b9;'>⚡ Électricité</h2>", unsafe_allow_html=True)
             elec = df[df['type_energie'] == 'Elec'].iloc[0]
             st.metric("Consommation Instantanée", f"{elec['valeur_actuelle']:.2f} kW")
             st.line_chart(df[df['type_energie'] == 'Elec'].set_index('timestamp')['valeur_actuelle'])
         with col2:
-            st.markdown("### 🔥 Gaz")
+            st.markdown("<h2 style='color: #e67e22;'>🔥 Gaz</h2>", unsafe_allow_html=True)
             gaz = df[df['type_energie'] == 'Gaz'].iloc[0]
             st.metric("Débit Instantané", f"{gaz['valeur_actuelle']:.2f} m³/h")
             st.line_chart(df[df['type_energie'] == 'Gaz'].set_index('timestamp')['valeur_actuelle'])
     else:
-        st.warning("Aucune donnée pour cet abonné. Appuyez sur 'Rafraîchir'.")
+        st.info("En attente de données de la carte TTGO ESP32...")
 
 # --- ROUTAGE ---
 if page == "Facturation":
