@@ -190,10 +190,23 @@ def page_supervision(client_id, info):
     st.title("Smart-Grid SONELGAZ : Supervision Temps Réel et Facturation")
     st.subheader(f"Supervision Temps Réel : {info['nom']} (Client: {client_id})")
 
+    # Initialisation des variables Smart-Grid dans session_state si absentes
+    if 'tension' not in st.session_state: st.session_state.tension = 230.0
+    if 'courant' not in st.session_state: st.session_state.courant = 0.0
+    if 'cos_phi' not in st.session_state: st.session_state.cos_phi = 0.95
+    if 'puissance_kw' not in st.session_state: st.session_state.puissance_kw = 0.0
+
     # --- GESTION DES MODES D'ACQUISITION ---
     if mode_acquisition == "Mode Simulation":
-        st.info("🔧 **Mode Simulation** : Génération de valeurs aléatoires pour simuler la consommation.")
+        st.info("🔧 **Mode Simulation** : Génération de valeurs aléatoires pour simuler la consommation et le réseau.")
+        
         if st.button("Rafraîchir les données (Simulation)"):
+            # Simulation des paramètres du Grid
+            st.session_state.tension = random.uniform(220.0, 240.0)
+            st.session_state.courant = random.uniform(1.0, 15.0)
+            st.session_state.cos_phi = random.uniform(0.85, 1.0)
+            st.session_state.puissance_kw = (st.session_state.tension * st.session_state.courant * st.session_state.cos_phi) / 1000
+
             conn = sqlite3.connect('monitoring_energie.db')
             c = conn.cursor()
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -205,18 +218,24 @@ def page_supervision(client_id, info):
             
     elif mode_acquisition == "Mode Réel (Carte TTGO)":
         st.success("📡 **Mode Réel (IoT)** : Communication avec la carte ESP32 TTGO sur le réseau local.")
-        # Champ pour définir dynamiquement l'adresse IP de la carte TTGO
         ip_ttgo = st.text_input("Adresse IP de la carte TTGO (ex: 192.168.1.50) :", "192.168.1.50")
         
         if st.button("Acquérir les index depuis la TTGO"):
             try:
                 # Requête HTTP GET vers la carte TTGO
                 url_ttgo = f"http://{ip_ttgo}/mesures"
-                response = requests.get(url_ttgo, timeout=5) # Timeout de 5 secondes
+                response = requests.get(url_ttgo, timeout=5)
                 
                 if response.status_code == 200:
                     data = response.json()
-                    # Récupération des valeurs depuis le JSON envoyé par la TTGO
+                    
+                    # Récupération des valeurs du réseau
+                    st.session_state.tension = float(data.get('v', 230.0))
+                    st.session_state.courant = float(data.get('i', 0.0))
+                    st.session_state.cos_phi = float(data.get('pf', 0.95))
+                    st.session_state.puissance_kw = float(data.get('kw', 0.0))
+
+                    # Récupération consommation habituelle
                     elec_reel = float(data.get('elec', get_live_data(client_id, "Elec")))
                     gaz_reel = float(data.get('gaz', get_live_data(client_id, "Gaz")))
 
@@ -227,19 +246,24 @@ def page_supervision(client_id, info):
                     c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", 0.0, gaz_reel, client_id))
                     conn.commit()
                     conn.close()
-                    st.toast("✅ Données acquises avec succès depuis la carte TTGO !")
+                    st.toast("✅ Données réseaux et index acquises avec succès !")
                     st.rerun()
                 else:
                     st.error(f"⚠️ Erreur de communication avec la TTGO. Code HTTP: {response.status_code}")
             
-            except requests.exceptions.Timeout:
-                st.error("⏳ Délai d'attente dépassé (Timeout). Vérifiez que la carte TTGO est allumée et connectée au même réseau Wi-Fi.")
-            except requests.exceptions.ConnectionError:
-                st.error("❌ Impossible de se connecter. L'adresse IP de la TTGO est-elle correcte ?")
             except Exception as e:
-                st.error(f"❌ Erreur inattendue : {e}")
+                st.error(f"❌ Erreur lors de la connexion : {e}")
 
-    # --- AFFICHAGE DES DONNÉES ---
+    # --- NOUVEAU DASHBOARD SMART-GRID (Affichage Temps Réel) ---
+    st.markdown("### 📊 État du Réseau Électrique (Smart-Grid)")
+    col_grid1, col_grid2, col_grid3, col_grid4 = st.columns(4)
+    col_grid1.metric("⚡ Tension", f"{st.session_state.tension:.1f} V")
+    col_grid2.metric("🔌 Courant", f"{st.session_state.courant:.2f} A")
+    col_grid3.metric("📐 Cos $\phi$", f"{st.session_state.cos_phi:.2f}")
+    col_grid4.metric("📈 Puissance", f"{st.session_state.puissance_kw:.2f} kW")
+    st.divider()
+
+    # --- AFFICHAGE DES DONNÉES DE CONSOMMATION ---
     conn = sqlite3.connect('monitoring_energie.db')
     df = pd.read_sql_query("SELECT * FROM mesures WHERE client_id=? ORDER BY timestamp DESC LIMIT 20", conn, params=(client_id,))
     conn.close()
@@ -280,9 +304,5 @@ def page_supervision(client_id, info):
             st.line_chart(df[df['type_energie'] == 'Gaz'].set_index('timestamp')['total_jour'])
     else: 
         st.warning("Données indisponibles.")
-
-# --- ROUTAGE ---
-if page == "Facturation":
-    page_facturation(selected_id, client_info)
 elif page == "Supervision Temps Réel":
     page_supervision(selected_id, client_info)
