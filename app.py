@@ -261,10 +261,4 @@ def page_facturation(client_id, info):
     
         st.divider()
         
-        # Graphique d'évolution des impulsions
-        conn = sqlite3.connect('monitoring_energie.db', check_same_thread=False)
-        df = pd.read_sql_query("SELECT * FROM mesures WHERE client_id=? ORDER BY timestamp DESC LIMIT 20", conn, params=(client_id,))
-        conn.close()
-        if not df.empty:
-        st.write("Évolution de la consommation (Unités cumulées)")
-        st.line_chart(df[df['type_energie'] == 'Elec'].set_index('timestamp')['total_jour'])
+        
