@@ -185,6 +185,133 @@ def page_facturation(client_id, info):
 
 # --- PAGE 2 : SUPERVISION ---
 def page_supervision(client_id, info):
+    st.title("Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA")
+    st.subheader(f"Supervision par Impulsions : {info['nom']} (Client: {client_id})")
+
+    # Facteur de conversion : 1 impulsion = combien de kWh/Th (à ajuster selon les spécifications de votre compteur)
+    FACTEUR_IMPULSION = 1.0
+
+    # Initialisation des compteurs d'impulsions dans session_state
+    if 'imp_elec' not in st.session_state: st.session_state.imp_elec = 0
+    if 'imp_gaz' not in st.session_state: st.session_state.imp_gaz = 0
+
+    # --- GESTION DES MODES D'ACQUISITION ---
+    if mode_acquisition == "Mode Simulation":
+        st.info("🔧 **Mode Simulation** : Génération d'impulsions aléatoires pour simuler le comptage.")
+        
+        if st.button("Simuler réception impulsions"):
+            # Simulation de la réception de nouvelles impulsions
+            nouvelles_imp_elec = random.randint(1, 5)
+            nouvelles_imp_gaz = random.randint(1, 3)
+
+            last_elec = get_live_data(client_id, "Elec")
+            last_gaz = get_live_data(client_id, "Gaz")
+
+            conn = sqlite3.connect('monitoring_energie.db', check_same_thread=False)
+            c = conn.cursor()
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Elec", nouvelles_imp_elec, last_elec + (nouvelles_imp_elec * FACTEUR_IMPULSION), client_id))
+            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", nouvelles_imp_gaz, last_gaz + (nouvelles_imp_gaz * FACTEUR_IMPULSION), client_id))
+            conn.commit()
+            conn.close()
+            st.rerun()
+            
+    elif mode_acquisition == "Mode Réel (Carte TTGO)":
+        st.success("📡 **Mode Réel (IoT)** : Réception d'impulsions depuis la carte ESP32 TTGO sur le réseau local.")
+        ip_ttgo = st.text_input("Adresse IP de la carte TTGO (ex: 192.168.1.50) :", "192.168.1.50")
+        
+        if st.button("Acquérir les impulsions depuis la TTGO"):
+            try:
+                # On interroge l'endpoint JSON de la carte TTGO (ex: {"imp_elec": 12, "imp_gaz": 3})
+                url_ttgo = f"http://{ip_ttgo}/impulsions"
+                response = requests.get(url_ttgo, timeout=5)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    
+                    # Récupération des nouvelles impulsions
+                    nouvelles_imp_elec = int(data.get('imp_elec', 0))
+                    nouvelles_imp_gaz = int(data.get('imp_gaz', 0))
+
+                    last_elec = get_live_data(client_id, "Elec")
+                    last_gaz = get_live_data(client_id, "Gaz")
+
+                    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    conn = sqlite3.connect('monitoring_energie.db', check_same_thread=False)
+                    c = conn.cursor()
+                    c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Elec", nouvelles_imp_elec, last_elec + (nouvelles_imp_elec * FACTEUR_IMPULSION), client_id))
+                    c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", nouvelles_imp_gaz, last_gaz + (nouvelles_imp_gaz * FACTEUR_IMPULSION), client_id))
+                    conn.commit()
+                    conn.close()
+                    st.toast("✅ Impulsions acquises et converties avec succès !")
+                    st.rerun()
+                else:
+                    st.error(f"⚠️ Erreur de communication avec la TTGO. Code HTTP: {response.status_code}")
+            except Exception as e:
+                st.error(f"❌ Erreur lors de la connexion : {e}")
+
+    # --- DASHBOARD IMPULSIONS ---
+    conn = sqlite3.connect('monitoring_energie.db', check_same_thread=False)
+    df = pd.read_sql_query("SELECT * FROM mesures WHERE client_id=? ORDER BY timestamp DESC LIMIT 20", conn, params=(client_id,))
+    conn.close()
+
+    elec_val = 0.0
+    gaz_val = 0.0
+    if not df.empty:
+        df_elec = df[df['type_energie'] == 'Elec']
+        df_gaz = df[df['type_energie'] == 'Gaz']
+        if not df_elec.empty: elec_val = df_elec.iloc[0]['total_jour']
+        if not df_gaz.empty: gaz_val = df_gaz.iloc[0]['total_jour']
+
+    st.markdown("### 📊 État du Comptage (Impulsions)")
+    col_grid1, col_grid2 = st.columns(2)
+    # On recalcule le nombre total d'impulsions à partir de la valeur en base
+    col_grid1.metric("⚡ Total Impulsions Élec", f"{int(elec_val / FACTEUR_IMPULSION)} pulses")
+    col_grid2.metric("🔥 Total Impulsions Gaz", f"{int(gaz_val / FACTEUR_IMPULSION)} pulses")
+    st.divider()
+
+    # --- AFFICHAGE DES DONNÉES DE CONSOMMATION ---
+    if not df.empty:
+        data_elec, data_gaz, _, _, _, _, _, _, _ = calculer_facture(elec_val, gaz_val)
+
+        # Tranches Électricité
+        st.markdown("### ⚡ Consommation Électricité par Tranche")
+        cols_e = st.columns(3)
+        for i, tranche in enumerate(data_elec):
+            limit = 125.0 if i==0 else 125.0 if i==1 else 1000.0
+            cols_e[i].metric(tranche['tranche'], f"{tranche['qte']:.2f} kWh")
+            cols_e[i].progress(min(tranche['qte'] / limit, 1.0))
+
+        st.markdown("---")
+
+        # Tranches Gaz
+        st.markdown("### 🔥 Consommation Gaz par Tranche")
+        cols_g = st.columns(3)
+        for i, tranche in enumerate(data_gaz):
+            limit = 1125.0 if i==0 else 1375.0 if i==1 else 1000.0
+            cols_g[i].metric(tranche['tranche'], f"{tranche['qte']:.2f} Th")
+            cols_g[i].progress(min(tranche['qte'] / limit, 1.0))
+
+        st.markdown("---")
+        
+        st.subheader("Évolution Historique (Dernières lectures)")
+        col1, col2 = st.columns(2)
+        with col1: 
+            st.write("Électricité (Unités Cumulées)")
+            if not df_elec.empty: st.line_chart(df_elec.set_index('timestamp')['total_jour'])
+        with col2: 
+            st.write("Gaz (Unités Cumulées)")
+            if not df_gaz.empty: st.line_chart(df_gaz.set_index('timestamp')['total_jour'])
+    else: 
+        st.warning("Données indisponibles.")
+
+# --- ROUTAGE ---
+if page == "Facturation":
+    page_facturation(selected_id, client_info)
+elif page == "Supervision Temps Réel":
+    page_supervision(selected_id, client_info)
+# --- PAGE 2 : SUPERVISION ---
+def page_supervision(client_id, info):
     st.title("Smart-Grid SONELGAZ : Supervision Temps Réel")
     st.subheader(f"Supervision Temps Réel : {info['nom']} (Client: {client_id})")
 
