@@ -15,3 +15,5 @@ weasyprint
 streamlit
 weasyprint
 cffi
+streamlit
+xhtml2pdf
