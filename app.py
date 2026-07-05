@@ -3,6 +3,7 @@ import sqlite3
 import pandas as pd
 import random
 import io
+import requests
 from datetime import datetime
 from xhtml2pdf import pisa
 import streamlit.components.v1 as components
@@ -92,6 +93,10 @@ st.sidebar.markdown("**Smart-Grid SONELGAZ : Supervision Temps Réel et Facturat
 
 selected_id = st.sidebar.selectbox("Choisir un abonné :", list(CLIENTS.keys()))
 client_info = CLIENTS[selected_id]
+
+# Sélecteur du mode d'acquisition
+mode_acquisition = st.sidebar.radio("Mode d'acquisition :", ["Mode Simulation", "Mode Réel (Carte TTGO)"])
+
 page = st.sidebar.radio("Navigation", ["Facturation", "Supervision Temps Réel"])
 
 # --- FONCTION RÉCUPÉRATION ---
@@ -182,19 +187,59 @@ def page_facturation(client_id, info):
 
 # --- PAGE 2 : SUPERVISION ---
 def page_supervision(client_id, info):
-    st.title("Plateforme Smart-grid et de facturation-SONELGAZ")
+    st.title("Smart-Grid SONELGAZ : Supervision Temps Réel et Facturation")
     st.subheader(f"Supervision Temps Réel : {info['nom']} (Client: {client_id})")
 
-    if st.button("Rafraîchir les données (Simulation Temps Réel)"):
-        conn = sqlite3.connect('monitoring_energie.db')
-        c = conn.cursor()
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        # Ajout d'une petite variation pour la simulation de supervision
-        c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Elec", random.uniform(1.0, 4.0), 562.00 + random.uniform(0, 10), client_id))
-        c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", random.uniform(0.5, 1.5), 2708.40 + random.uniform(0, 10), client_id))
-        conn.commit()
-        conn.close()
+    # --- GESTION DES MODES D'ACQUISITION ---
+    if mode_acquisition == "Mode Simulation":
+        st.info("🔧 **Mode Simulation** : Génération de valeurs aléatoires pour simuler la consommation.")
+        if st.button("Rafraîchir les données (Simulation)"):
+            conn = sqlite3.connect('monitoring_energie.db')
+            c = conn.cursor()
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Elec", random.uniform(1.0, 4.0), get_live_data(client_id, "Elec") + random.uniform(0.5, 2.5), client_id))
+            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", random.uniform(0.5, 1.5), get_live_data(client_id, "Gaz") + random.uniform(0.1, 1.0), client_id))
+            conn.commit()
+            conn.close()
+            st.rerun()
+            
+    elif mode_acquisition == "Mode Réel (Carte TTGO)":
+        st.success("📡 **Mode Réel (IoT)** : Communication avec la carte ESP32 TTGO sur le réseau local.")
+        # Champ pour définir dynamiquement l'adresse IP de la carte TTGO
+        ip_ttgo = st.text_input("Adresse IP de la carte TTGO (ex: 192.168.1.50) :", "192.168.1.50")
+        
+        if st.button("Acquérir les index depuis la TTGO"):
+            try:
+                # Requête HTTP GET vers la carte TTGO
+                url_ttgo = f"http://{ip_ttgo}/mesures"
+                response = requests.get(url_ttgo, timeout=5) # Timeout de 5 secondes
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    # Récupération des valeurs depuis le JSON envoyé par la TTGO
+                    elec_reel = float(data.get('elec', get_live_data(client_id, "Elec")))
+                    gaz_reel = float(data.get('gaz', get_live_data(client_id, "Gaz")))
 
+                    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    conn = sqlite3.connect('monitoring_energie.db')
+                    c = conn.cursor()
+                    c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Elec", 0.0, elec_reel, client_id))
+                    c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", 0.0, gaz_reel, client_id))
+                    conn.commit()
+                    conn.close()
+                    st.toast("✅ Données acquises avec succès depuis la carte TTGO !")
+                    st.rerun()
+                else:
+                    st.error(f"⚠️ Erreur de communication avec la TTGO. Code HTTP: {response.status_code}")
+            
+            except requests.exceptions.Timeout:
+                st.error("⏳ Délai d'attente dépassé (Timeout). Vérifiez que la carte TTGO est allumée et connectée au même réseau Wi-Fi.")
+            except requests.exceptions.ConnectionError:
+                st.error("❌ Impossible de se connecter. L'adresse IP de la TTGO est-elle correcte ?")
+            except Exception as e:
+                st.error(f"❌ Erreur inattendue : {e}")
+
+    # --- AFFICHAGE DES DONNÉES ---
     conn = sqlite3.connect('monitoring_energie.db')
     df = pd.read_sql_query("SELECT * FROM mesures WHERE client_id=? ORDER BY timestamp DESC LIMIT 20", conn, params=(client_id,))
     conn.close()
