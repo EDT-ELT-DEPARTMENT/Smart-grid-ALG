@@ -187,7 +187,13 @@ def page_facturation(client_id, info):
 def page_supervision(client_id, info):
     st.title("Smart-Grid SONELGAZ : Supervision Temps Réel")
     st.subheader(f"Supervision Temps Réel : {info['nom']} (Client: {client_id})")
-    
+
+    # Initialisation des variables Smart-Grid dans session_state si absentes
+    if 'tension' not in st.session_state: st.session_state.tension = 230.0
+    if 'courant' not in st.session_state: st.session_state.courant = 0.0
+    if 'cos_phi' not in st.session_state: st.session_state.cos_phi = 0.95
+    if 'puissance_kw' not in st.session_state: st.session_state.puissance_kw = 0.0
+
     # --- GESTION DES MODES D'ACQUISITION ---
     if mode_acquisition == "Mode Simulation":
         st.info("🔧 **Mode Simulation** : Génération de valeurs aléatoires pour simuler la consommation et le réseau.")
