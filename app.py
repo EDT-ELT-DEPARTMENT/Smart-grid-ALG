@@ -20,7 +20,7 @@ def init_db():
     c = conn.cursor()
     c.execute("CREATE TABLE IF NOT EXISTS mesures (timestamp DATETIME, type_energie TEXT, valeur_actuelle REAL, total_jour REAL, client_id TEXT)")
     
-    # Insertion de données initiales si la base est vide
+    # Initialisation si vide
     for client_id in ["7314P001114", "7314P001115", "7314P001116"]:
         c.execute("SELECT COUNT(*) FROM mesures WHERE client_id=?", (client_id,))
         if c.fetchone()[0] == 0:
@@ -63,7 +63,7 @@ def calculer_facture(conso_elec, conso_gaz):
     ]
     ht_gaz = sum([i['mt'] for i in data_gaz])
     
-    # 3. Taxes et Redevances
+    # 3. Taxes
     redevance_fixe_ht = 164.16
     tva_9 = 138.99 
     tva_19 = 301.19
@@ -73,7 +73,6 @@ def calculer_facture(conso_elec, conso_gaz):
     
     total_ht = ht_elec + ht_gaz
     total_taxes = redevance_fixe_ht + tva_9 + tva_19 + droit_fixe + taxe_habitation
-    
     net_ttc = total_ht + total_taxes
     total_especes = net_ttc + timbre
     
@@ -183,56 +182,47 @@ def page_supervision(client_id, info):
     st.title("Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA : Supervision")
     st.subheader(f"Supervision Temps Réel : {info['nom']} (Client: {client_id})")
 
-    # Initialisation des états de session pour forcer l'incrémentation
+    # Initialisation états de session
     if 'auto_sim' not in st.session_state: st.session_state.auto_sim = False
     
-    # Chargement initial des valeurs réelles depuis la DB si non présentes
-    if 'current_elec' not in st.session_state: 
-        st.session_state.current_elec = get_db_value(client_id, "Elec")
-        st.session_state.current_gaz = get_db_value(client_id, "Gaz")
+    # Chargement des valeurs en session pour garantir la persistance additive
+    if f'sess_elec_{client_id}' not in st.session_state:
+        st.session_state[f'sess_elec_{client_id}'] = get_db_value(client_id, "Elec")
+    if f'sess_gaz_{client_id}' not in st.session_state:
+        st.session_state[f'sess_gaz_{client_id}'] = get_db_value(client_id, "Gaz")
 
     # --- GESTION DES MODES D'ACQUISITION ---
     if mode_acquisition == "Mode Simulation":
-        st.info("🔧 **Mode Simulation** : Comptage des impulsions (consommation dynamique).")
+        st.info("🔧 **Mode Simulation** : Comptage additif des impulsions.")
         st.session_state.auto_sim = st.toggle("Activer la simulation automatique", st.session_state.auto_sim)
         
         if st.session_state.auto_sim:
-            # Incrémentation dans la mémoire de session pour garantir la dynamique
-            inc_elec = random.uniform(0.5, 1.2)
-            inc_gaz = inc_elec * 0.3
+            # Incrément pur, sans contrainte temporelle
+            inc_elec = random.uniform(0.1, 0.5)
+            inc_gaz = inc_elec * 0.2
             
-            st.session_state.current_elec += inc_elec
-            st.session_state.current_gaz += inc_gaz
+            st.session_state[f'sess_elec_{client_id}'] += inc_elec
+            st.session_state[f'sess_gaz_{client_id}'] += inc_gaz
 
             conn = sqlite3.connect('monitoring_energie.db', check_same_thread=False)
             c = conn.cursor()
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Elec", inc_elec, st.session_state.current_elec, client_id))
-            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", inc_gaz, st.session_state.current_gaz, client_id))
+            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Elec", inc_elec, st.session_state[f'sess_elec_{client_id}'], client_id))
+            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", inc_gaz, st.session_state[f'sess_gaz_{client_id}'], client_id))
             conn.commit()
             conn.close()
             
             time.sleep(1) 
             st.rerun()
             
-    elif mode_acquisition == "Mode Réel (Carte TTGO)":
-        st.success("📡 **Mode Réel (IoT)** : Réception impulsions TTGO.")
-        ip_ttgo = st.text_input("Adresse IP TTGO :", "192.168.1.50")
-        
-        if st.button("Acquérir les index"):
-            try:
-                # Simulation de réception API
-                st.session_state.current_elec += 0.5 
-                st.toast("✅ Index reçus.")
-                st.rerun()
-            except Exception as e:
-                st.error(f"❌ Erreur : {e}")
-
     # --- DASHBOARD ---
     st.markdown("### 📊 État de la consommation")
     
     # Affichage calculé
-    data_elec, data_gaz, _, _, _, _, _, _, _ = calculer_facture(st.session_state.current_elec, st.session_state.current_gaz)
+    data_elec, data_gaz, _, _, _, _, _, _, _ = calculer_facture(
+        st.session_state[f'sess_elec_{client_id}'], 
+        st.session_state[f'sess_gaz_{client_id}']
+    )
 
     st.markdown("### ⚡ Consommation Électricité")
     cols_e = st.columns(3)
