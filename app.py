@@ -14,7 +14,6 @@ st.set_page_config(page_title="SONELGAZ - Plateforme", layout="wide")
 def init_db():
     conn = sqlite3.connect('monitoring_energie.db')
     c = conn.cursor()
-    # Vérification de la structure de la table pour éviter les erreurs de colonne
     c.execute("CREATE TABLE IF NOT EXISTS mesures (timestamp DATETIME, type_energie TEXT, valeur_actuelle REAL, total_jour REAL, client_id TEXT)")
     
     # Vérification si la colonne client_id existe, sinon on recrée la table
@@ -108,7 +107,6 @@ def page_supervision(client_id, info):
         conn = sqlite3.connect('monitoring_energie.db')
         c = conn.cursor()
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        # Inserer 5 colonnes maintenant
         c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Elec", random.uniform(1.0, 4.0), random.uniform(50, 300), c_id))
         c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", random.uniform(0.5, 1.5), random.uniform(5, 20), c_id))
         conn.commit()
@@ -122,17 +120,35 @@ def page_supervision(client_id, info):
     conn.close()
 
     if not df.empty:
+        elec_data = df[df['type_energie'] == 'Elec'].iloc[0]
+        gaz_data = df[df['type_energie'] == 'Gaz'].iloc[0]
+
         col1, col2 = st.columns(2)
         with col1:
             st.markdown("<h2 style='color: #2980b9;'>⚡ Électricité</h2>", unsafe_allow_html=True)
-            elec = df[df['type_energie'] == 'Elec'].iloc[0]
-            st.metric("Consommation Instantanée", f"{elec['valeur_actuelle']:.2f} kW")
+            st.metric("Consommation Instantanée", f"{elec_data['valeur_actuelle']:.2f} kW")
             st.line_chart(df[df['type_energie'] == 'Elec'].set_index('timestamp')['valeur_actuelle'])
         with col2:
             st.markdown("<h2 style='color: #e67e22;'>🔥 Gaz</h2>", unsafe_allow_html=True)
-            gaz = df[df['type_energie'] == 'Gaz'].iloc[0]
-            st.metric("Débit Instantané", f"{gaz['valeur_actuelle']:.2f} m³/h")
+            st.metric("Débit Instantané", f"{gaz_data['valeur_actuelle']:.2f} m³/h")
             st.line_chart(df[df['type_energie'] == 'Gaz'].set_index('timestamp')['valeur_actuelle'])
+
+        # --- SECTION TRANCHES RESTAURÉE ---
+        st.divider()
+        st.subheader("État des Tranches de Consommation")
+        col_t1, col_t2, col_t3 = st.columns(3)
+        
+        # Logique des barres de progression
+        conso_totale = elec_data['total_jour']
+        t1_prog = min((conso_totale / 125.0) * 100, 100)
+        col_t1.progress(t1_prog / 100, text=f"Tranche 1 (125 kWh) : {t1_prog:.1f}%")
+        
+        t2_prog = min(max(((conso_totale - 125) / 125.0) * 100, 0), 100) if conso_totale > 125 else 0
+        col_t2.progress(t2_prog / 100, text=f"Tranche 2 (125 kWh) : {t2_prog:.1f}%")
+        
+        t3_prog = max(((conso_totale - 250) / 1000) * 100, 0) if conso_totale > 250 else 0
+        col_t3.progress(min(t3_prog / 100, 1.0), text=f"Tranche 3 (Supp) : {t3_prog:.1f}%")
+
     else:
         st.info("En attente de données de la carte TTGO ESP32...")
 
