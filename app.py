@@ -27,9 +27,47 @@ CLIENTS = {
     "7314P001116": {"nom": "KADI Sarah", "facture": "733260603361", "lieu": "VILLA N°45 ZONE 02"}
 }
 
+# --- FONCTIONS DE CALCUL (Mise à jour pour précision) ---
+def calculer_facture(conso_elec, conso_gaz):
+    # 1. Électricité
+    e1 = min(conso_elec, 125.0)
+    e2 = max(0, min(conso_elec - 125.0, 125.0))
+    e3 = max(0, conso_elec - 250.0)
+    data_elec = [
+        {"tranche": "Tranche 1", "qte": e1, "prix": 1.7787, "mt": e1 * 1.7787},
+        {"tranche": "Tranche 2", "qte": e2, "prix": 4.1789, "mt": e2 * 4.1789},
+        {"tranche": "Tranche 3", "qte": e3, "prix": 4.8120, "mt": e3 * 4.8120}
+    ]
+    ht_elec = sum([i['mt'] for i in data_elec])
+    
+    # 2. Gaz
+    g1 = min(conso_gaz, 1125.0)
+    g2 = max(0, min(conso_gaz - 1125.0, 1375.0))
+    g3 = max(0, conso_gaz - 2500.0)
+    data_gaz = [
+        {"tranche": "Tranche 1", "qte": g1, "prix": 0.1682, "mt": g1 * 0.1682},
+        {"tranche": "Tranche 2", "qte": g2, "prix": 0.3245, "mt": g2 * 0.3245},
+        {"tranche": "Tranche 3", "qte": g3, "prix": 0.4025, "mt": g3 * 0.4025}
+    ]
+    ht_gaz = sum([i['mt'] for i in data_gaz])
+    
+    # 3. Taxes et Redevances (Révision du calcul)
+    # Redevances fixes (ex: 200 DA)
+    redevance_fixe = 200.0
+    # TVA (9% sur électricité, 19% sur Gaz + Redevance)
+    tva = (ht_elec * 0.09) + ((ht_gaz + redevance_fixe) * 0.19)
+    # Taxe habitation fixe
+    taxe_habitation = 150.0
+    
+    total_taxes = redevance_fixe + tva + taxe_habitation
+    total_ht = ht_elec + ht_gaz
+    total_ttc = total_ht + total_taxes
+    
+    return data_elec, data_gaz, ht_elec, ht_gaz, total_ht, total_taxes, total_ttc
+
 # --- NAVIGATION ---
 st.sidebar.title("Navigation")
-st.sidebar.markdown("Plateforme de supervision et facturation d'électricité & de Gaz-SONELGAZ")
+st.sidebar.markdown("**Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA**")
 
 selected_id = st.sidebar.selectbox("Choisir un abonné :", list(CLIENTS.keys()))
 client_info = CLIENTS[selected_id]
@@ -45,34 +83,13 @@ def get_live_data(client_id, type_energie):
 
 # --- PAGE 1 : FACTURATION ---
 def page_facturation(client_id, info):
-    st.title("Plateforme de supervision et facturation d'électricité & de Gaz-SONELGAZ")
-    
-    # Affichage des infos client dans l'interface
+    st.title("Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA")
     st.info(f"**Client :** {info['nom']} | **N° Facture :** {info['facture']} | **Lieu :** {info['lieu']}")
 
     conso_elec = get_live_data(client_id, "Elec")
     conso_gaz = get_live_data(client_id, "Gaz")
 
-    # Calculs Tranches
-    data_elec = [
-        {"tranche": "Tranche 1", "qte": min(conso_elec, 125.0), "prix": 1.7787},
-        {"tranche": "Tranche 2", "qte": max(0, min(conso_elec - 125.0, 125.0)), "prix": 4.1789},
-        {"tranche": "Tranche 3", "qte": max(0, conso_elec - 250.0), "prix": 4.8120}
-    ]
-    for i in data_elec: i['mt'] = i['qte'] * i['prix']
-    ht_elec = sum([i['mt'] for i in data_elec])
-
-    data_gaz = [
-        {"tranche": "Tranche 1", "qte": min(conso_gaz, 1125.0), "prix": 0.1682},
-        {"tranche": "Tranche 2", "qte": max(0, min(conso_gaz - 1125.0, 1375.0)), "prix": 0.3245},
-        {"tranche": "Tranche 3", "qte": max(0, conso_gaz - 2500.0), "prix": 0.4025}
-    ]
-    for i in data_gaz: i['mt'] = i['qte'] * i['prix']
-    ht_gaz = sum([i['mt'] for i in data_gaz])
-
-    taxes = 164.16 + 138.99 + 301.19 + 200.0 + 200.0
-    total_ht = ht_elec + ht_gaz
-    net_ttc = total_ht + taxes
+    data_elec, data_gaz, ht_elec, ht_gaz, total_ht, taxes, net_ttc = calculer_facture(conso_elec, conso_gaz)
 
     # HTML design Bleu
     facture_html = f"""
@@ -87,25 +104,21 @@ def page_facturation(client_id, info):
     </style>
     <div class="invoice-box">
         <div class="header"><h2>SONELGAZ - Détail de Facturation</h2></div>
-        
         <div class="client-section">
             <p><strong>Nom du client :</strong> {info['nom']}</p>
             <p><strong>N° de Facture :</strong> {info['facture']}</p>
-            <p><strong>Adresse / Lieu :</strong> {info['lieu']}</p>
+            <p><strong>Adresse :</strong> {info['lieu']}</p>
         </div>
-        
         <h3>⚡ Électricité</h3>
         <table>
             <tr><th>Tranche</th><th>Quantité</th><th>Prix</th><th>Montant HT</th></tr>
             {"".join([f"<tr><td>{i['tranche']}</td><td>{i['qte']:.2f}</td><td>{i['prix']:.4f}</td><td>{i['mt']:.2f}</td></tr>" for i in data_elec])}
         </table>
-        
         <h3>🔥 Gaz</h3>
         <table>
             <tr><th>Tranche</th><th>Quantité</th><th>Prix</th><th>Montant HT</th></tr>
             {"".join([f"<tr><td>{i['tranche']}</td><td>{i['qte']:.2f}</td><td>{i['prix']:.4f}</td><td>{i['mt']:.2f}</td></tr>" for i in data_gaz])}
         </table>
-        
         <div class="summary">
             <p>Total HT Électricité : {ht_elec:.2f} DA</p>
             <p>Total HT Gaz : {ht_gaz:.2f} DA</p>
@@ -115,9 +128,7 @@ def page_facturation(client_id, info):
         </div>
     </div>
     """
-    
-    # Rendu propre
-    components.html(facture_html, height=900, scrolling=True)
+    components.html(facture_html, height=800, scrolling=True)
 
     def generate_pdf(html_string):
         result = io.BytesIO()
@@ -130,17 +141,40 @@ def page_facturation(client_id, info):
 
 # --- PAGE 2 : SUPERVISION ---
 def page_supervision(client_id, info):
-    st.title("Plateforme de supervision et facturation d'électricité & de Gaz-SONELGAZ")
-    st.subheader(f"Supervision : {info['nom']}")
-    # ... (le reste du code supervision reste identique)
+    st.title("Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA")
+    st.subheader(f"Supervision Temps Réel : {info['nom']}")
+
+    if st.button("Rafraîchir les données"):
+        conn = sqlite3.connect('monitoring_energie.db')
+        c = conn.cursor()
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Elec", random.uniform(1.0, 4.0), random.uniform(50, 400), client_id))
+        c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", random.uniform(0.5, 1.5), random.uniform(5, 50), client_id))
+        conn.commit()
+        conn.close()
+
     conn = sqlite3.connect('monitoring_energie.db')
-    df = pd.read_sql_query("SELECT * FROM mesures WHERE client_id=? ORDER BY timestamp DESC LIMIT 20", conn, params=(client_id,))
+    df = pd.read_sql_query("SELECT * FROM mesures WHERE client_id=? ORDER BY timestamp DESC LIMIT 10", conn, params=(client_id,))
     conn.close()
+
     if not df.empty:
-        col1, col2 = st.columns(2)
-        with col1: st.line_chart(df[df['type_energie'] == 'Elec'].set_index('timestamp')['valeur_actuelle'])
-        with col2: st.line_chart(df[df['type_energie'] == 'Gaz'].set_index('timestamp')['valeur_actuelle'])
-    else: st.warning("Données indisponibles.")
+        elec_val = df[df['type_energie'] == 'Elec'].iloc[0]['total_jour']
+        gaz_val = df[df['type_energie'] == 'Gaz'].iloc[0]['total_jour']
+
+        # Calculer les tranches pour l'affichage temps réel
+        data_elec, data_gaz, _, _, _, _, _ = calculer_facture(elec_val, gaz_val)
+
+        st.subheader("Tranches Électricité")
+        cols = st.columns(3)
+        for i, tranche in enumerate(data_elec):
+            cols[i].metric(tranche['tranche'], f"{tranche['qte']:.2f} kWh")
+            cols[i].progress(min(tranche['qte'] / (125 if i==0 else 125 if i==1 else 1000), 1.0))
+
+        st.subheader("Tranches Gaz")
+        cols = st.columns(3)
+        for i, tranche in enumerate(data_gaz):
+            cols[i].metric(tranche['tranche'], f"{tranche['qte']:.2f} m³")
+            cols[i].progress(min(tranche['qte'] / (1125 if i==0 else 1375 if i==1 else 1000), 1.0))
 
 # --- ROUTAGE ---
 if page == "Facturation":
