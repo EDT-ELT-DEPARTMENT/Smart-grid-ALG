@@ -47,17 +47,21 @@ class GestionnaireBD:
 # GESTION MQTT (ACQUISITION RÉELLE)
 # ==============================================================================
 def on_message(client, userdata, msg):
-    # Exemple de topic: "dept_elt/sba/SNG-2026-001/elec"
-    topic_parts = msg.topic.split('/')
-    ref_contrat = topic_parts[2]
-    valeur = float(msg.payload.decode())
-    
-    print(f"[MQTT] Réception réelle pour {ref_contrat} : {valeur}")
-    # Mise à jour de la DB selon le type de message
-    if "elec" in msg.topic:
-        db.mettre_a_jour_index(ref_contrat, valeur, 0)
-    elif "gaz" in msg.topic:
-        db.mettre_a_jour_index(ref_contrat, 0, valeur)
+    try:
+        # Exemple de topic: "dept_elt/sba/SNG-2026-001/elec"
+        topic_parts = msg.topic.split('/')
+        ref_contrat = topic_parts[2]
+        valeur = float(msg.payload.decode())
+        
+        print(f"[MQTT] Réception réelle pour {ref_contrat} : {valeur}")
+        
+        # Mise à jour de la DB selon le type de message
+        if "elec" in msg.topic:
+            db.mettre_a_jour_index(ref_contrat, valeur, 0)
+        elif "gaz" in msg.topic:
+            db.mettre_a_jour_index(ref_contrat, 0, valeur)
+    except Exception as e:
+        print(f"Erreur lors du traitement MQTT : {e}")
 
 # ==============================================================================
 # SIMULATION (MODE TEST)
@@ -70,7 +74,7 @@ def simuler_consommation(db):
         d_elec = random.uniform(0.01, 0.5)
         d_gaz = random.uniform(0.01, 0.5)
         db.mettre_a_jour_index(ref, d_elec, d_gaz)
-        print(f"[SIMULATION] Mise à jour pour {ref}")
+    print("[SIMULATION] Mise à jour effectuée pour tous les compteurs.")
 
 # ==============================================================================
 # BOUCLE PRINCIPALE
@@ -78,8 +82,8 @@ def simuler_consommation(db):
 if __name__ == "__main__":
     db = GestionnaireBD()
     
-    # Configuration du Client MQTT
-    client = mqtt.Client()
+    # Configuration du Client MQTT avec gestion de version API
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1)
     client.on_message = on_message
     
     # Connexion au broker (à adapter avec votre IP)
@@ -89,22 +93,25 @@ if __name__ == "__main__":
         client.subscribe("dept_elt/sba/+/gaz")
         client.loop_start()
         print("Mode Acquisition MQTT activé...")
+        mqtt_active = True
     except:
         print("Broker MQTT inaccessible. Passage en mode Simulation pure.")
-        client = None
+        mqtt_active = False
 
     # Boucle d'exécution
     try:
         while True:
             # Si pas de MQTT, on simule
-            if client is None:
+            if not mqtt_active:
                 simuler_consommation(db)
             
             # Affichage de l'état actuel de la base
-            print("\n--- État actuel des compteurs ---")
+            print(f"\n--- État actuel des compteurs ({datetime.now().strftime('%H:%M:%S')}) ---")
             for row in db.cursor.execute('SELECT reference_contrat, index_elec_total, index_gaz_total FROM abonnes'):
                 print(f"Réf: {row[0]} | Elec: {row[1]:.2f} | Gaz: {row[2]:.2f}")
             
             time.sleep(10) # Rafraîchissement toutes les 10 secondes
     except KeyboardInterrupt:
-        print("Arrêt du système.")
+        if mqtt_active:
+            client.loop_stop()
+        print("\nArrêt du système.")
