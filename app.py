@@ -12,20 +12,16 @@ import streamlit.components.v1 as components
 # --- CONFIGURATION DE LA PAGE ---
 st.set_page_config(page_title="Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA", layout="wide")
 
-# --- TITRE DE LA PLATEFORME ---
-st.title("Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA")
-
 # --- INITIALISATION DE LA BASE DE DONNÉES ---
 def init_db():
     conn = sqlite3.connect('monitoring_energie.db')
     c = conn.cursor()
     c.execute("CREATE TABLE IF NOT EXISTS mesures (timestamp DATETIME, type_energie TEXT, valeur_actuelle REAL, total_jour REAL, client_id TEXT)")
     
-    # Insertion de données initiales simulant la facture pour le client principal
+    # Insertion de données initiales si la base est vide
     c.execute("SELECT COUNT(*) FROM mesures WHERE client_id='7314P001114'")
     if c.fetchone()[0] == 0:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        # Injection des valeurs de la facture (562 kWh et 2708.40 Th)
         c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Elec", 0.0, 562.00, "7314P001114"))
         c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", 0.0, 2708.40, "7314P001114"))
     
@@ -65,7 +61,7 @@ def calculer_facture(conso_elec, conso_gaz):
     ]
     ht_gaz = sum([i['mt'] for i in data_gaz])
     
-    # 3. Taxes et Redevances Exactes
+    # 3. Taxes et Redevances
     redevance_fixe_ht = 164.16
     tva_9 = 138.99 
     tva_19 = 301.19
@@ -76,7 +72,6 @@ def calculer_facture(conso_elec, conso_gaz):
     total_ht = ht_elec + ht_gaz
     total_taxes = redevance_fixe_ht + tva_9 + tva_19 + droit_fixe + taxe_habitation
     
-    # Net à payer et espèces
     net_ttc = total_ht + total_taxes
     total_especes = net_ttc + timbre
     
@@ -114,6 +109,7 @@ def page_facturation(client_id, info):
     st.title("Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA : Facturation Détaillée")
     st.info(f"**Client :** {info['nom']} | **N° Client :** {client_id} | **N° Facture :** {info['facture']} | **Lieu :** {info['lieu']}")
 
+    # Récupération immédiate des données pour facturation instantanée
     conso_elec = get_live_data(client_id, "Elec")
     conso_gaz = get_live_data(client_id, "Gaz")
 
@@ -186,93 +182,35 @@ def page_facturation(client_id, info):
 # --- PAGE 2 : SUPERVISION ---
 def page_supervision(client_id, info):
     st.title("Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA : Supervision")
-    st.subheader(f"Supervision Temps Réel : {info['nom']} (Client: {client_id})")
-
-    # Initialisation session state
-    if 'tension' not in st.session_state: st.session_state.tension = 230.0
-    if 'courant' not in st.session_state: st.session_state.courant = 0.0
-    if 'cos_phi' not in st.session_state: st.session_state.cos_phi = 0.95
-    if 'puissance_kw' not in st.session_state: st.session_state.puissance_kw = 0.0
+    
     if 'auto_sim' not in st.session_state: st.session_state.auto_sim = False
-
+    
     # --- GESTION DES MODES D'ACQUISITION ---
     if mode_acquisition == "Mode Simulation":
-        st.info("🔧 **Mode Simulation** : Génération dynamique (1.0 à 1.5 kWh/h).")
-        
-        # Toggle pour simulation automatique
         st.session_state.auto_sim = st.toggle("Activer la simulation automatique", st.session_state.auto_sim)
         
         if st.session_state.auto_sim:
-            st.warning("Simulation en cours... La page se rafraîchira automatiquement.")
-            
-            # Logique dynamique
-            st.session_state.tension = random.uniform(220.0, 240.0)
-            st.session_state.courant = random.uniform(1.0, 15.0)
-            st.session_state.cos_phi = random.uniform(0.85, 1.0)
-            st.session_state.puissance_kw = (st.session_state.tension * st.session_state.courant * st.session_state.cos_phi) / 1000
-
-            increment_elec = random.uniform(1.0, 1.5)
-            increment_gaz = increment_elec * 0.3 
-
+            # Incrémentation dynamique
             conn = sqlite3.connect('monitoring_energie.db')
             c = conn.cursor()
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Elec", increment_elec, get_live_data(client_id, "Elec") + increment_elec, client_id))
-            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", increment_gaz, get_live_data(client_id, "Gaz") + increment_gaz, client_id))
+            inc_elec = random.uniform(1.0, 1.5)
+            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Elec", inc_elec, get_live_data(client_id, "Elec") + inc_elec, client_id))
+            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", 0.3, get_live_data(client_id, "Gaz") + 0.3, client_id))
             conn.commit()
             conn.close()
-            
-            time.sleep(2) # Intervalle de rafraîchissement
+            time.sleep(2)
             st.rerun()
-            
-    elif mode_acquisition == "Mode Réel (Carte TTGO)":
-        st.success("📡 **Mode Réel (IoT)** : Communication TTGO active.")
-        ip_ttgo = st.text_input("Adresse IP TTGO :", "192.168.1.50")
-        
-        if st.button("Acquérir les index"):
-            try:
-                response = requests.get(f"http://{ip_ttgo}/mesures", timeout=5)
-                if response.status_code == 200:
-                    data = response.json()
-                    st.session_state.tension = float(data.get('v', 230.0))
-                    # Mise à jour DB... (code inchangé)
-                    st.toast("✅ Données acquises.")
-                    st.rerun()
-            except Exception as e:
-                st.error(f"❌ Erreur : {e}")
 
-    # --- DASHBOARD SMART-GRID ---
-    st.markdown("### 📊 État du Réseau")
-    col_grid1, col_grid2, col_grid3, col_grid4 = st.columns(4)
-    col_grid1.metric("⚡ Tension", f"{st.session_state.tension:.1f} V")
-    col_grid2.metric("🔌 Courant", f"{st.session_state.courant:.2f} A")
-    col_grid3.metric("📐 Cos $\phi$", f"{st.session_state.cos_phi:.2f}")
-    col_grid4.metric("📈 Puissance", f"{st.session_state.puissance_kw:.2f} kW")
-    st.divider()
+    # --- DASHBOARD ---
+    df_temp = pd.read_sql_query("SELECT * FROM mesures WHERE client_id=? ORDER BY timestamp DESC LIMIT 20", sqlite3.connect('monitoring_energie.db'), params=(client_id,))
+    
+    if not df_temp.empty:
+        elec_val = df_temp[df_temp['type_energie'] == 'Elec'].iloc[0]['total_jour']
+        st.metric("Consommation actuelle (Elec)", f"{elec_val:.2f} kWh")
+        st.line_chart(df_temp[df_temp['type_energie'] == 'Elec'].set_index('timestamp')['total_jour'])
 
-    # --- AFFICHAGE DES DONNÉES ---
-    conn = sqlite3.connect('monitoring_energie.db')
-    df = pd.read_sql_query("SELECT * FROM mesures WHERE client_id=? ORDER BY timestamp DESC LIMIT 20", conn, params=(client_id,))
-    conn.close()
-
-    if not df.empty:
-        elec_val = df[df['type_energie'] == 'Elec'].iloc[0]['total_jour']
-        gaz_val = df[df['type_energie'] == 'Gaz'].iloc[0]['total_jour']
-        data_elec, data_gaz, _, _, _, _, _, _, _ = calculer_facture(elec_val, gaz_val)
-
-        st.markdown("### ⚡ Consommation Électricité")
-        cols_e = st.columns(3)
-        for i, tranche in enumerate(data_elec):
-            limit = 125 if i==0 else 125 if i==1 else 1000
-            cols_e[i].metric(tranche['tranche'], f"{tranche['qte']:.2f} kWh")
-            cols_e[i].progress(min(tranche['qte'] / limit, 1.0))
-        
-        st.markdown("---")
-        st.subheader("Évolution Historique")
-        col1, col2 = st.columns(2)
-        with col1: st.line_chart(df[df['type_energie'] == 'Elec'].set_index('timestamp')['total_jour'])
-        with col2: st.line_chart(df[df['type_energie'] == 'Gaz'].set_index('timestamp')['total_jour'])
-
+# --- ROUTAGE ---
 if page == "Facturation":
     page_facturation(selected_id, client_info)
 elif page == "Supervision Temps Réel":
