@@ -10,3 +10,5 @@ fpdf2
 streamlit
 paho-mqtt
 fpdf
+streamlit
+weasyprint
