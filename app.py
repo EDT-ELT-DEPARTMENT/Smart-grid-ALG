@@ -4,22 +4,33 @@ import random
 import time
 from datetime import datetime
 
-# Configuration de la page
+# Configuration
 st.set_page_config(page_title="Plateforme de gestion des EDTs", layout="wide")
 
 st.title("Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA")
 
-# ==========================================
-# 1. Gestion Base de Données
-# ==========================================
 def get_db():
     conn = sqlite3.connect("sonelgaz_gestion.db", check_same_thread=False)
     cursor = conn.cursor()
+    
+    # 1. Vérification de la structure : si la table n'a pas les bonnes colonnes, on la supprime
+    cursor.execute("PRAGMA table_info(abonnes)")
+    columns = [info[1] for info in cursor.fetchall()]
+    
+    # Si la table existe mais n'a pas les colonnes attendues (4 colonnes), on reset
+    if columns and "index_elec" not in columns:
+        cursor.execute("DROP TABLE abonnes")
+        cursor.execute("DROP TABLE mesures")
+        conn.commit()
+    
+    # 2. Recréation propre
     cursor.execute('''CREATE TABLE IF NOT EXISTS abonnes (
                         reference_contrat TEXT PRIMARY KEY, 
-                        nom TEXT, index_elec REAL, index_gaz REAL)''')
+                        nom TEXT, 
+                        index_elec REAL, 
+                        index_gaz REAL)''')
     
-    # Remplissage si vide
+    # Initialisation si vide
     cursor.execute('SELECT count(*) FROM abonnes')
     if cursor.fetchone()[0] == 0:
         for i in range(1, 11):
@@ -31,38 +42,26 @@ def get_db():
 conn = get_db()
 cursor = conn.cursor()
 
-# ==========================================
-# 2. Simulation (Remplace la boucle while)
-# ==========================================
-# On simule une mise à jour à chaque fois que la page est rafraîchie
-for i in range(1, 11):
-    ref = f"SNG-2026-{i:03d}"
-    cursor.execute('UPDATE abonnes SET index_elec = index_elec + ?, index_gaz = index_gaz + ? WHERE reference_contrat = ?', 
-                   (random.uniform(0.1, 0.5), random.uniform(0.1, 0.5), ref))
-conn.commit()
+# Simulation mise à jour
+try:
+    for i in range(1, 11):
+        ref = f"SNG-2026-{i:03d}"
+        cursor.execute('UPDATE abonnes SET index_elec = index_elec + ?, index_gaz = index_gaz + ? WHERE reference_contrat = ?', 
+                       (random.uniform(0.1, 0.5), random.uniform(0.1, 0.5), ref))
+    conn.commit()
+except Exception as e:
+    st.error(f"Erreur lors de la mise à jour : {e}")
 
-# ==========================================
-# 3. Affichage (Interface)
-# ==========================================
+# Affichage
 st.subheader("État actuel des compteurs")
-
 data = []
 for row in cursor.execute('SELECT * FROM abonnes'):
-    data.append({
-        "Réf Contrat": row[0],
-        "Nom": row[1],
-        "Index Élec": round(row[2], 2),
-        "Index Gaz": round(row[3], 2)
-    })
+    data.append({"Code": row[0], "Nom": row[1], "Index Élec": round(row[2], 2), "Index Gaz": round(row[3], 2)})
 
 st.table(data)
 
-st.info(f"Dernière mise à jour : {datetime.now().strftime('%H:%M:%S')}")
-
-# Bouton de rafraîchissement manuel
-if st.button("Rafraîchir les données"):
+if st.button("Rafraîchir"):
     st.rerun()
 
-# Rafraîchissement automatique toutes les 5 secondes
 time.sleep(5)
 st.rerun()
