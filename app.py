@@ -192,7 +192,41 @@ def page_supervision(client_id, info):
     if 'courant' not in st.session_state: st.session_state.courant = 0.0
     if 'cos_phi' not in st.session_state: st.session_state.cos_phi = 0.95
     if 'puissance_kw' not in st.session_state: st.session_state.puissance_kw = 0.0
-
+    # --- GESTION DU MODE SIMULATION ---
+    if mode_acquisition == "Mode Simulation":
+        st.info("🔧 **Mode Simulation** : Simulation manuelle par impulsions S0 (1 imp = 1 Wh)")
+        
+        # Liste déroulante pour choisir le nombre d'impulsions
+        impulsions_options = [100, 250, 500, 1000, 2500, 5000]
+        selected_imp = st.selectbox("Choisir le nombre d'impulsions à simuler :", impulsions_options)
+        
+        if st.button("Valider et Simuler la consommation"):
+            # Calcul : 1 imp = 1 Wh donc 1000 imp = 1 kWh
+            kwh_ajoute = selected_imp / 1000.0
+            
+            # Récupération des index actuels
+            current_elec = get_live_data(client_id, "Elec")
+            # Pour le gaz, on simule une progression proportionnelle par défaut
+            current_gaz = get_live_data(client_id, "Gaz") 
+            
+            new_elec = current_elec + kwh_ajoute
+            new_gaz = current_gaz + (kwh_ajoute * 0.5) # Ratio arbitraire pour la démo
+            
+            # Mise à jour BDD
+            conn = sqlite3.connect('monitoring_energie.db')
+            c = conn.cursor()
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", 
+                      (now, "Elec", 0.0, new_elec, client_id))
+            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", 
+                      (now, "Gaz", 0.0, new_gaz, client_id))
+            
+            conn.commit()
+            conn.close()
+            
+            st.toast(f"✅ Simulation effectuée : +{kwh_ajoute} kWh ajoutés.")
+            st.rerun()
     if mode_acquisition == "Mode Simulation":
         st.info("🔧 **Mode Simulation** : Génération de valeurs aléatoires pour simuler la consommation et le réseau.")
         
