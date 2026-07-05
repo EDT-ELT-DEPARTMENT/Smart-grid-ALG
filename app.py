@@ -1,7 +1,6 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
-import time
 import random
 import io
 from datetime import datetime
@@ -26,43 +25,56 @@ init_db()
 st.sidebar.title("Plateforme SONELGAZ")
 page = st.sidebar.radio("Navigation", ["Facturation", "Supervision Temps Réel"])
 
+# --- FONCTION DE CALCUL DYNAMIQUE ---
+def get_live_data():
+    conn = sqlite3.connect('monitoring_energie.db')
+    # On récupère le dernier cumul pour l'électricité
+    df = pd.read_sql_query("SELECT total_jour FROM mesures WHERE type_energie='Elec' ORDER BY timestamp DESC LIMIT 1", conn)
+    conn.close()
+    if not df.empty:
+        return df['total_jour'].iloc[0]
+    return 0.0 # Valeur par défaut si rien n'est enregistré
+
 # --- PAGE 1 : FACTURATION ---
 def page_facturation():
     st.title("Plateforme de Facturation SONELGAZ")
     st.subheader("Direction de Distribution SIDI BEL ABBES")
 
+    # Calcul dynamique des tranches
+    total_conso = get_live_data()
+    
+    # Logique de découpage en tranches (125 kWh par palier)
+    qte_t1 = min(total_conso, 125.0)
+    qte_t2 = max(0, min(total_conso - 125.0, 125.0))
+    qte_t3 = max(0, total_conso - 250.0)
+
+    # Mise à jour des données avec les valeurs réelles
     data = {
         "nom": "Mr MILOUA Farid",
         "client_num": "7314P001114",
         "lieu_conso": "01 BLOC B CT 70 LOGTS UDL",
         "fact_num": "733260603359",
         "elec": [
-            {"tranche": "Tranche 1", "qte": 125.0, "prix": 1.7787, "mt": 744.70},
-            {"tranche": "Tranche 2", "qte": 125.0, "prix": 4.1789, "mt": 744.70},
-            {"tranche": "Tranche 3", "qte": 312.0, "prix": 4.8120, "mt": 1501.34}
+            {"tranche": "Tranche 1", "qte": qte_t1, "prix": 1.7787, "mt": qte_t1 * 1.7787},
+            {"tranche": "Tranche 2", "qte": qte_t2, "prix": 4.1789, "mt": qte_t2 * 4.1789},
+            {"tranche": "Tranche 3", "qte": qte_t3, "prix": 4.8120, "mt": qte_t3 * 4.8120}
         ],
-        "gaz": [
-            {"tranche": "Tranche 1", "qte": 1125.0, "prix": 0.1682, "mt": 635.42},
-            {"tranche": "Tranche 2", "qte": 1375.0, "prix": 0.3245, "mt": 635.42},
-            {"tranche": "Tranche 3", "qte": 208.4, "prix": 0.4025, "mt": 83.88}
-        ],
-        "redevance": 164.16, "tva_9": 138.99, "tva_19": 301.19, "droit": 200.0, "taxe": 200.0, "net_ttc": 3969.68
+        "redevance": 164.16, "tva_9": 138.99, "tva_19": 301.19, "droit": 200.0, "taxe": 200.0
     }
+    
+    # Calcul du Net à payer
+    sous_total_ht = sum([i['mt'] for i in data['elec']])
+    data['net_ttc'] = sous_total_ht + data['redevance'] + data['tva_9'] + data['tva_19'] + data['droit'] + data['taxe']
 
     facture_html = f"""
     <div style="border: 2px solid #2980b9; padding: 20px; font-family: Arial, sans-serif;">
-    <h2 style="color: #2980b9; text-align: center;">SONELGAZ - Détail de Facturation</h2>
+    <h2 style="color: #2980b9; text-align: center;">SONELGAZ - Détail de Facturation (Temps Réel)</h2>
     <p><strong>Facture n°:</strong> {data['fact_num']} | <strong>Client n°:</strong> {data['client_num']}</p>
     <p><strong>Abonné :</strong> {data['nom']} | <strong>Lieu :</strong> {data['lieu_conso']}</p>
-    <h3 style="color: #2980b9;">Électricité</h3>
+    <h3 style="color: #2980b9;">Électricité (Consommation totale : {total_conso:.2f} kWh)</h3>
     <table style="width:100%; border-collapse: collapse;">
     <tr style="background-color: #d6eaf8;"><th>Tranche</th><th>Quantité</th><th>Prix Unitaire</th><th>Montant HT</th></tr>
-    {"".join([f"<tr><td>{i['tranche']}</td><td>{i['qte']}</td><td>{i['prix']}</td><td>{i['mt']}</td></tr>" for i in data['elec']])}
-    </table>
-    <h3 style="color: #2980b9;">Gaz</h3>
-    <table style="width:100%; border-collapse: collapse;">
-    <tr style="background-color: #d6eaf8;"><th>Tranche</th><th>Quantité</th><th>Prix Unitaire</th><th>Montant HT</th></tr>
-    {"".join([f"<tr><td>{i['tranche']}</td><td>{i['qte']}</td><td>{i['prix']}</td><td>{i['mt']}</td></tr>" for i in data['gaz']])}
+    {"".join([f"<tr><td>{i['tranche']}</td><td>{i['qte']:.2f}</td><td>{i['prix']:.4f}</td><td>{i['mt']:.2f}</td></tr>" for i in data['elec']])}
     </table>
     <div style="margin-top: 20px; border-top: 2px solid #2980b9; padding-top: 10px;">
     <p>Redevance fixe : {data['redevance']} DA | TVA (9% : {data['tva_9']} DA | 19% : {data['tva_19']} DA)</p>
@@ -91,7 +103,9 @@ def page_supervision():
         conn = sqlite3.connect('monitoring_energie.db')
         c = conn.cursor()
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?)", (now, "Elec", random.uniform(1.2, 3.5), random.uniform(50, 60)))
+        # On simule une augmentation du cumul quotidien pour tester le changement de facture
+        cumul_actuel = random.uniform(50, 300) 
+        c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?)", (now, "Elec", random.uniform(1.2, 3.5), cumul_actuel))
         c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?)", (now, "Gaz", random.uniform(0.5, 1.2), random.uniform(10, 15)))
         conn.commit()
         conn.close()
