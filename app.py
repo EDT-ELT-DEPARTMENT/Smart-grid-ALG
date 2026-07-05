@@ -3,33 +3,39 @@ import io
 from xhtml2pdf import pisa
 
 # --- CONFIGURATION DE LA PAGE ---
-# Mode wide pour utiliser toute la largeur de l'écran
 st.set_page_config(
     page_title="Plateforme de gestion des EDTs-S2-2026", 
     layout="wide"
 )
 
-# --- TITRES ---
-# Rappel du titre de l'application selon vos consignes[cite: 1]
+# --- TITRES DE L'APPLICATION ---
 st.title("Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA")
 st.subheader("Plateforme de Facturation SONELGAZ - Direction de Distribution SIDI BEL ABBES")
 
 # --- DONNÉES DE FACTURATION ---
-facture_num = "733260603359"
-client_num = "7314P001114"
-nom_abonne = "MME BELASKRI ASMA"
-lieu_consommation = "01 BLOC B CT 70 LOGTS UDL"
+data = {
+    "fact_num": "733260603359",
+    "client_num": "7314P001114",
+    "nom": "MME BELASKRI ASMA",
+    "lieu": "01 BLOC B CT 70 LOGTS UDL",
+    "redevance": "164.16",
+    "tva_9": "138.99",
+    "tva_19": "301.19",
+    "droit_fixe": "200.00",
+    "taxe_hab": "200.00",
+    "net_ttc": "3969.68"
+}
 
 # --- CONSTRUCTION DU CONTENU HTML ---
-# Utilisation de box-sizing: border-box pour éviter les débordements de largeur
+# J'ai ajouté une largeur fixe (max-width) pour que le contenu ne s'étire pas trop sur les grands écrans
 html_content = f"""
-<div style="font-family: Arial, sans-serif; padding: 25px; border: 2px solid #2980b9; background-color: #ffffff; box-sizing: border-box; width: 100%; margin: 0;">
+<div style="font-family: Arial, sans-serif; padding: 25px; border: 2px solid #2980b9; background-color: #ffffff; max-width: 1000px; margin: auto; box-sizing: border-box;">
     
     <h2 style="color: #2980b9; text-align: center; margin-top: 0;">SONELGAZ - Détail de Facturation Smart</h2>
     
     <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #d6eaf8; background-color: #fcfcfc;">
-        <p style="margin: 5px 0;"><strong>Facture n°:</strong> {facture_num} | <strong>Client n°:</strong> {client_num}</p>
-        <p style="margin: 5px 0;"><strong>Abonné :</strong> {nom_abonne} | <strong>Lieu de consommation :</strong> {lieu_consommation}</p>
+        <p style="margin: 5px 0;"><strong>Facture n°:</strong> {data['fact_num']} | <strong>Client n°:</strong> {data['client_num']}</p>
+        <p style="margin: 5px 0;"><strong>Abonné :</strong> {data['nom']} | <strong>Lieu de consommation :</strong> {data['lieu']}</p>
     </div>
 
     <h3 style="color: #2980b9;">Électricité</h3>
@@ -89,19 +95,17 @@ html_content = f"""
     </table>
 
     <div style="margin-top: 20px; border-top: 2px solid #2980b9; padding-top: 15px;">
-        <p style="margin: 5px 0;"><strong>Redevance fixe :</strong> 164.16 DA</p>
-        <p style="margin: 5px 0;"><strong>Détail Taxes :</strong> TVA 9% (138.99 DA) | TVA 19% (301.19 DA) | Droit fixe (200.00 DA) | Taxe habitation (200.00 DA)</p>
-        <h2 style="color: #2980b9; text-align: right; margin-top: 20px;">Net à payer : 3969.68 DA</h2>
+        <p style="margin: 5px 0;"><strong>Redevance fixe :</strong> {data['redevance']} DA</p>
+        <p style="margin: 5px 0;"><strong>Détail Taxes :</strong> TVA 9% ({data['tva_9']} DA) | TVA 19% ({data['tva_19']} DA) | Droit fixe ({data['droit_fixe']} DA) | Taxe habitation ({data['taxe_hab']} DA)</p>
+        <h2 style="color: #2980b9; text-align: right; margin-top: 20px;">Net à payer : {data['net_ttc']} DA</h2>
     </div>
 </div>
 """
 
-# --- AFFICHAGE DANS L'INTERFACE ---
-# Utilisation d'un conteneur dédié pour isoler l'affichage
-with st.container():
-    st.markdown(html_content, unsafe_allow_html=True)
+# --- AFFICHAGE ---
+st.markdown(html_content, unsafe_allow_html=True)
 
-# --- FONCTION POUR GÉNÉRER LE PDF ---
+# --- FONCTION PDF ---
 def convertir_en_pdf(html_string):
     resultat = io.BytesIO()
     pisa.CreatePDF(html_string, dest=resultat)
@@ -113,7 +117,6 @@ st.write("### Options d'exportation")
 
 col1, col2 = st.columns(2)
 
-# Bouton pour télécharger le HTML
 col1.download_button(
     label="Télécharger en HTML",
     data=html_content,
@@ -121,7 +124,6 @@ col1.download_button(
     mime="text/html"
 )
 
-# Bouton pour télécharger le PDF
 col2.download_button(
     label="Télécharger en PDF",
     data=convertir_en_pdf(html_content),
