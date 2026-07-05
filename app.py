@@ -304,5 +304,3 @@ def page_supervision(client_id, info):
             st.line_chart(df[df['type_energie'] == 'Gaz'].set_index('timestamp')['total_jour'])
     else: 
         st.warning("Données indisponibles.")
-elif page == "Supervision Temps Réel":
-    page_supervision(selected_id, client_info)
