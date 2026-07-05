@@ -182,11 +182,10 @@ def page_facturation(client_id, info):
     col1, col2 = st.columns(2)
     col1.download_button("Télécharger HTML", facture_html, "facture.html", "text/html")
     col2.download_button("Télécharger PDF", generate_pdf(facture_html), "facture.pdf", "application/pdf")
-
-# --- PAGE 2 : SUPERVISION ---
-def page_supervision(client_id, info):
-    st.title("Smart-Grid SONELGAZ : Plateforme de Supervision et de Facturation")
-    st.subheader(f"Supervision par Impulsions : {info['nom']} (Client: {client_id})")
+    # --- PAGE 2 : SUPERVISION ---
+    def page_supervision(client_id, info):
+        st.title("Smart-Grid SONELGAZ : Plateforme de Supervision et de Facturation")
+        st.subheader(f"Supervision par Impulsions : {info['nom']} (Client: {client_id})")
 
     # --- FACTEURS DE CONVERSION ---
     # ÉLECTRICITÉ : À vérifier sur votre compteur (ex: 1000 imp/kWh = 0.001)
@@ -279,19 +278,24 @@ def page_supervision(client_id, info):
         if not df_elec.empty: elec_val = df_elec.iloc[0]['total_jour']
         if not df_gaz.empty: gaz_val = df_gaz.iloc[0]['total_jour']
 
-    st.markdown("### 📊 État du Comptage (Impulsions)")
+    st.markdown("### 📊 État du Comptage (Impulsions Brutes)")
     col_grid1, col_grid2 = st.columns(2)
-    # On recalcule le nombre total d'impulsions à partir de la valeur en base
-    col_grid1.metric("⚡ Total Impulsions Élec", f"{int(elec_val / FACTEUR_IMPULSION)} pulses")
-    col_grid2.metric("🔥 Total Impulsions Gaz", f"{int(gaz_val / FACTEUR_IMPULSION)} pulses")
+    
+    # Recalcul inverse pour afficher le nombre d'impulsions physiques reçues depuis l'origine
+    total_imp_elec = int(elec_val / FACTEUR_IMP_ELEC_KWH) if FACTEUR_IMP_ELEC_KWH > 0 else 0
+    total_imp_gaz = int(gaz_val / (FACTEUR_IMP_GAZ_M3 * COEF_SONELGAZ_PCS)) if (FACTEUR_IMP_GAZ_M3 * COEF_SONELGAZ_PCS) > 0 else 0
+    
+    col_grid1.metric("⚡ Total Impulsions Élec", f"{total_imp_elec} pulses")
+    col_grid2.metric("🔥 Total Impulsions Gaz", f"{total_imp_gaz} pulses")
     st.divider()
 
     # --- AFFICHAGE DES DONNÉES DE CONSOMMATION ---
     if not df.empty:
+        # Appel de la fonction de facturation avec les valeurs converties (kWh et Th)
         data_elec, data_gaz, _, _, _, _, _, _, _ = calculer_facture(elec_val, gaz_val)
 
         # Tranches Électricité
-        st.markdown("### ⚡ Consommation Électricité par Tranche")
+        st.markdown("### ⚡ Consommation Électricité par Tranche (kWh)")
         cols_e = st.columns(3)
         for i, tranche in enumerate(data_elec):
             limit = 125.0 if i==0 else 125.0 if i==1 else 1000.0
@@ -301,7 +305,7 @@ def page_supervision(client_id, info):
         st.markdown("---")
 
         # Tranches Gaz
-        st.markdown("### 🔥 Consommation Gaz par Tranche")
+        st.markdown("### 🔥 Consommation Gaz par Tranche (Thermies)")
         cols_g = st.columns(3)
         for i, tranche in enumerate(data_gaz):
             limit = 1125.0 if i==0 else 1375.0 if i==1 else 1000.0
@@ -313,16 +317,10 @@ def page_supervision(client_id, info):
         st.subheader("Évolution Historique (Dernières lectures)")
         col1, col2 = st.columns(2)
         with col1: 
-            st.write("Électricité (Unités Cumulées)")
+            st.write("Électricité (Unités Cumulées - kWh)")
             if not df_elec.empty: st.line_chart(df_elec.set_index('timestamp')['total_jour'])
         with col2: 
-            st.write("Gaz (Unités Cumulées)")
+            st.write("Gaz (Unités Cumulées - Th)")
             if not df_gaz.empty: st.line_chart(df_gaz.set_index('timestamp')['total_jour'])
     else: 
-        st.warning("Données indisponibles.")
-
-# --- ROUTAGE ---
-if page == "Facturation":
-    page_facturation(selected_id, client_info)
-elif page == "Supervision Temps Réel":
-    page_supervision(selected_id, client_info)
+        st.warning("Données indisponibles. Effectuez une simulation ou une acquisition réelle.")
