@@ -87,18 +87,6 @@ def calculer_facture(conso_elec, conso_gaz):
     
     return data_elec, data_gaz, ht_elec, ht_gaz, total_ht, total_taxes, net_ttc, total_especes, details_taxes
 
-# --- NAVIGATION ---
-st.sidebar.title("Navigation")
-st.sidebar.markdown("**Smart-Grid SONELGAZ : Supervision Temps Réel et Facturation**")
-
-selected_id = st.sidebar.selectbox("Choisir un abonné :", list(CLIENTS.keys()))
-client_info = CLIENTS[selected_id]
-
-# Sélecteur du mode d'acquisition
-mode_acquisition = st.sidebar.radio("Mode d'acquisition :", ["Mode Simulation", "Mode Réel (Carte TTGO)"])
-
-page = st.sidebar.radio("Navigation", ["Facturation", "Supervision Temps Réel"])
-
 # --- FONCTION RÉCUPÉRATION ---
 def get_live_data(client_id, type_energie):
     conn = sqlite3.connect('monitoring_energie.db')
@@ -107,9 +95,19 @@ def get_live_data(client_id, type_energie):
     conn.close()
     return df['total_jour'].iloc[0] if not df.empty else 0.0
 
+# --- NAVIGATION SIDEBAR ---
+st.sidebar.title("Navigation")
+st.sidebar.markdown("**Smart-Grid SONELGAZ : Supervision Temps Réel et Facturation**")
+
+selected_id = st.sidebar.selectbox("Choisir un abonné :", list(CLIENTS.keys()))
+client_info = CLIENTS[selected_id]
+
+mode_acquisition = st.sidebar.radio("Mode d'acquisition :", ["Mode Simulation", "Mode Réel (Carte TTGO)"])
+page = st.sidebar.radio("Navigation", ["Facturation", "Supervision Temps Réel"])
+
 # --- PAGE 1 : FACTURATION ---
 def page_facturation(client_id, info):
-    st.title("Smart-Grid SONELGAZ : Supervision Temps Réel et Facturation")
+    st.title("Smart-Grid SONELGAZ : Facturation Détaillée")
     st.info(f"**Client :** {info['nom']} | **N° Client :** {client_id} | **N° Facture :** {info['facture']} | **Lieu :** {info['lieu']}")
 
     conso_elec = get_live_data(client_id, "Elec")
@@ -187,7 +185,7 @@ def page_facturation(client_id, info):
 
 # --- PAGE 2 : SUPERVISION ---
 def page_supervision(client_id, info):
-    st.title("Smart-Grid SONELGAZ : Supervision Temps Réel et Facturation")
+    st.title("Smart-Grid SONELGAZ : Supervision Temps Réel")
     st.subheader(f"Supervision Temps Réel : {info['nom']} (Client: {client_id})")
 
     # Initialisation des variables Smart-Grid dans session_state si absentes
@@ -201,7 +199,6 @@ def page_supervision(client_id, info):
         st.info("🔧 **Mode Simulation** : Génération de valeurs aléatoires pour simuler la consommation et le réseau.")
         
         if st.button("Rafraîchir les données (Simulation)"):
-            # Simulation des paramètres du Grid
             st.session_state.tension = random.uniform(220.0, 240.0)
             st.session_state.courant = random.uniform(1.0, 15.0)
             st.session_state.cos_phi = random.uniform(0.85, 1.0)
@@ -222,20 +219,17 @@ def page_supervision(client_id, info):
         
         if st.button("Acquérir les index depuis la TTGO"):
             try:
-                # Requête HTTP GET vers la carte TTGO
                 url_ttgo = f"http://{ip_ttgo}/mesures"
                 response = requests.get(url_ttgo, timeout=5)
                 
                 if response.status_code == 200:
                     data = response.json()
                     
-                    # Récupération des valeurs du réseau
                     st.session_state.tension = float(data.get('v', 230.0))
                     st.session_state.courant = float(data.get('i', 0.0))
                     st.session_state.cos_phi = float(data.get('pf', 0.95))
                     st.session_state.puissance_kw = float(data.get('kw', 0.0))
 
-                    # Récupération consommation habituelle
                     elec_reel = float(data.get('elec', get_live_data(client_id, "Elec")))
                     gaz_reel = float(data.get('gaz', get_live_data(client_id, "Gaz")))
 
@@ -250,11 +244,10 @@ def page_supervision(client_id, info):
                     st.rerun()
                 else:
                     st.error(f"⚠️ Erreur de communication avec la TTGO. Code HTTP: {response.status_code}")
-            
             except Exception as e:
                 st.error(f"❌ Erreur lors de la connexion : {e}")
 
-    # --- NOUVEAU DASHBOARD SMART-GRID (Affichage Temps Réel) ---
+    # --- DASHBOARD SMART-GRID ---
     st.markdown("### 📊 État du Réseau Électrique (Smart-Grid)")
     col_grid1, col_grid2, col_grid3, col_grid4 = st.columns(4)
     col_grid1.metric("⚡ Tension", f"{st.session_state.tension:.1f} V")
@@ -304,3 +297,9 @@ def page_supervision(client_id, info):
             st.line_chart(df[df['type_energie'] == 'Gaz'].set_index('timestamp')['total_jour'])
     else: 
         st.warning("Données indisponibles.")
+
+# --- ROUTAGE ---
+if page == "Facturation":
+    page_facturation(selected_id, client_info)
+elif page == "Supervision Temps Réel":
+    page_supervision(selected_id, client_info)
