@@ -8,7 +8,7 @@ from xhtml2pdf import pisa
 import streamlit.components.v1 as components
 
 # --- CONFIGURATION DE LA PAGE ---
-st.set_page_config(page_title="Plateforme de gestion des EDTs-S2-2026", layout="wide")
+st.set_page_config(page_title="Smart-Grid SONELGAZ : Supervision Temps Réel et Facturation", layout="wide")
 
 # --- INITIALISATION DE LA BASE DE DONNÉES ---
 def init_db():
@@ -88,7 +88,7 @@ def calculer_facture(conso_elec, conso_gaz):
 
 # --- NAVIGATION ---
 st.sidebar.title("Navigation")
-st.sidebar.markdown("**Plateforme Smart-grid et de facturation-SONELGAZ**")
+st.sidebar.markdown("**Smart-Grid SONELGAZ : Supervision Temps Réel et Facturation**")
 
 selected_id = st.sidebar.selectbox("Choisir un abonné :", list(CLIENTS.keys()))
 client_info = CLIENTS[selected_id]
@@ -104,7 +104,7 @@ def get_live_data(client_id, type_energie):
 
 # --- PAGE 1 : FACTURATION ---
 def page_facturation(client_id, info):
-    st.title("Plateforme Smart-grid et de facturation-SONELGAZ")
+    st.title("Smart-Grid SONELGAZ : Supervision Temps Réel et Facturation")
     st.info(f"**Client :** {info['nom']} | **N° Client :** {client_id} | **N° Facture :** {info['facture']} | **Lieu :** {info['lieu']}")
 
     conso_elec = get_live_data(client_id, "Elec")
