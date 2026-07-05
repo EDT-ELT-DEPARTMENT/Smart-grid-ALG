@@ -9,7 +9,7 @@ st.set_page_config(page_title="SONELGAZ - Facturation", layout="wide")
 st.title("Plateforme de Facturation SONELGAZ - Direction de Distribution SIDI BEL ABBES")
 # --- DONNÉES ---
 data = {
-    "nom": "MME BELASKRI ASMA",
+    "nom": "Mr MILOUA Farid",
     "client_num": "7314P001114",
     "lieu_conso": "01 BLOC B CT 70 LOGTS UDL",
     "fact_num": "733260603359",
