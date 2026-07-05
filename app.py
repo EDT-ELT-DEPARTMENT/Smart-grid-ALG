@@ -6,8 +6,7 @@ from xhtml2pdf import pisa
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="SONELGAZ - Facturation", layout="wide")
-st.title("Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA")
-st.subheader("Plateforme de Facturation SONELGAZ - Direction de Distribution SIDI BEL ABBES")
+st.title("Plateforme de Facturation SONELGAZ - Direction de Distribution SIDI BEL ABBES")
 
 # --- DONNÉES ---
 data = {
