@@ -10,10 +10,10 @@ from xhtml2pdf import pisa
 import streamlit.components.v1 as components
 
 # --- CONFIGURATION DE LA PAGE ---
-st.set_page_config(page_title="Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA", layout="wide")
+st.set_page_config(page_title="", layout="wide")
 
 # --- TITRE DE LA PLATEFORME ---
-st.title("Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA")
+st.title("")
 
 # --- INITIALISATION DE LA BASE DE DONNÉES ---
 def init_db():
