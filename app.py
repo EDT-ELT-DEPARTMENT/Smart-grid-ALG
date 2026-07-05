@@ -155,9 +155,11 @@ if client_data:
         .net-pay { font-size: 16px; font-weight: bold; background-color: #f0f0f0; border: 2px solid black; padding: 10px; text-align: center; margin-top: 20px;}
         .arabic { direction: rtl; font-family: 'Arial', sans-serif; }
     </style>
-    """, unsafe_allow_html=True)
-
-    facture_html = f"""
+        """, unsafe_allow_html=True)
+    
+        # IMPORTANT : Le code HTML ci-dessous ne doit comporter aucun espace d'indentation globale
+        # au début de chaque ligne pour éviter d'être reconnu comme du code source par Streamlit.
+        facture_html = f"""
     <div class="facture-container">
         <div style="display: flex; justify-content: space-between;">
             <div class="header-text" style="width: 33%;">
@@ -184,9 +186,9 @@ if client_data:
                 فاتورة استهلاك<br>الكهرباء والغاز
             </div>
         </div>
-
+    
         <div class="title-box">Facture n° 733260603359 | فاتورة رقم </div>
-
+    
         <table class="info-table">
             <tr>
                 <td><strong>Etablie le :</strong> {date_jour}</td>
@@ -205,7 +207,7 @@ if client_data:
                 <td><strong>RC N° :</strong></td>
             </tr>
         </table>
-
+    
         <h4>Vos consommations / إستهلاكاتكم (Période du: Trimestre en cours)</h4>
         <table class="data-table">
             <tr>
@@ -224,7 +226,7 @@ if client_data:
                 <td>{total_ht_gaz:.2f}</td>
             </tr>
         </table>
-
+    
         <h4>Vos contrats / عقودكم</h4>
         <h5>Electricité</h5>
         <table class="data-table">
@@ -258,7 +260,7 @@ if client_data:
                 <td>-</td><td>-</td><td colspan="2">{(m_e_t3 + m_e_t4):.2f}</td>
             </tr>
         </table>
-
+    
         <h5>Gaz</h5>
         <table class="data-table">
             <tr>
@@ -291,7 +293,7 @@ if client_data:
                 <td>-</td><td>-</td><td colspan="2">{(m_g_t3 + m_g_t4):.2f}</td>
             </tr>
         </table>
-
+    
         <table class="totals-table">
             <tr><td>Redevances fixes HT (Abonnement) (DA) / الإتاوات الثابتة</td><td class="amount">{abonnement:.2f}</td></tr>
             <tr><td>Frais & Prestation HT (DA) / رسوم وخدمات</td><td class="amount">0.00</td></tr>
@@ -302,17 +304,17 @@ if client_data:
             <tr><td>Droit Fixe sur consommation (DA) / المستحقات الثابتة على الاستهلاك</td><td class="amount">{droit_fixe:.2f}</td></tr>
             <tr><td>Taxe d'habitation (DA) / رسم على المسكن</td><td class="amount">{taxe_hab:.2f}</td></tr>
         </table>
-
+    
         <div class="net-pay">
             Net à payer TTC (DA) / الصافي للدفع متضمن جميع الرسوم (دج)<br>
             <span style="font-size:24px;">{net_ttc:.2f}</span>
         </div>
-
+    
         <table class="totals-table" style="width:50%; margin: 20px auto;">
             <tr><td>Timbre (paiement en espèce) (DA) / الطابع</td><td class="amount">{timbre:.2f}</td></tr>
             <tr><td><strong>Total à payer (en espèces) (DA) / المستحق الإجمالي</strong></td><td class="amount" style="font-size:18px;"><strong>{total_payer:.2f}</strong></td></tr>
         </table>
-
+    
         <div style="margin-top: 30px; border-top: 2px solid black; padding-top: 10px;">
             <div style="float:left; width: 45%;">
                 <strong>Sauf erreur ou omission / عدا خطأ أو نسيان</strong><br>
@@ -327,9 +329,10 @@ if client_data:
         </div>
     </div>
     """
-    st.markdown(facture_html, unsafe_allow_html=True)
-
-st.divider()
-
-if st.button("Actualiser les données des compteurs"):
-    st.rerun()
+        
+        st.markdown(facture_html, unsafe_allow_html=True)
+    
+    st.divider()
+    
+    if st.button("Actualiser les données des compteurs"):
+        st.rerun()
