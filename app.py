@@ -88,7 +88,7 @@ def calculer_facture(conso_elec, conso_gaz):
 
 # --- NAVIGATION ---
 st.sidebar.title("Navigation")
-st.sidebar.markdown("**Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA**")
+st.sidebar.markdown("**Plateforme Smart-grid et de facturation-SONELGAZ**")
 
 selected_id = st.sidebar.selectbox("Choisir un abonné :", list(CLIENTS.keys()))
 client_info = CLIENTS[selected_id]
@@ -104,7 +104,7 @@ def get_live_data(client_id, type_energie):
 
 # --- PAGE 1 : FACTURATION ---
 def page_facturation(client_id, info):
-    st.title("Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA")
+    st.title("Plateforme Smart-grid et de facturation-SONELGAZ")
     st.info(f"**Client :** {info['nom']} | **N° Client :** {client_id} | **N° Facture :** {info['facture']} | **Lieu :** {info['lieu']}")
 
     conso_elec = get_live_data(client_id, "Elec")
@@ -182,7 +182,7 @@ def page_facturation(client_id, info):
 
 # --- PAGE 2 : SUPERVISION ---
 def page_supervision(client_id, info):
-    st.title("Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA")
+    st.title("Plateforme Smart-grid et de facturation-SONELGAZ")
     st.subheader(f"Supervision Temps Réel : {info['nom']} (Client: {client_id})")
 
     if st.button("Rafraîchir les données (Simulation Temps Réel)"):
