@@ -29,7 +29,7 @@ CLIENTS = {
 
 # --- NAVIGATION ---
 st.sidebar.title("Navigation")
-st.sidebar.markdown("**Plateforme de supervision et facturation d'électricité & de Gaz-SONELGAZ)
+st.sidebar.markdown("Plateforme de supervision et facturation d'électricité & de Gaz-SONELGAZ)
 
 selected_id = st.sidebar.selectbox("Choisir un abonné :", list(CLIENTS.keys()))
 client_info = CLIENTS[selected_id]
@@ -45,7 +45,7 @@ def get_live_data(client_id, type_energie):
 
 # --- PAGE 1 : FACTURATION ---
 def page_facturation(client_id, info):
-    st.title("Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA")
+    st.title("Plateforme de supervision et facturation d'électricité & de Gaz-SONELGAZ")
     
     # Affichage des infos client dans l'interface
     st.info(f"**Client :** {info['nom']} | **N° Facture :** {info['facture']} | **Lieu :** {info['lieu']}")
@@ -130,7 +130,7 @@ def page_facturation(client_id, info):
 
 # --- PAGE 2 : SUPERVISION ---
 def page_supervision(client_id, info):
-    st.title("Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA")
+    st.title("Plateforme de supervision et facturation d'électricité & de Gaz-SONELGAZ")
     st.subheader(f"Supervision : {info['nom']}")
     # ... (le reste du code supervision reste identique)
     conn = sqlite3.connect('monitoring_energie.db')
