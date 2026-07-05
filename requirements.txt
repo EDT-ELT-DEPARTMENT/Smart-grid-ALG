@@ -7,3 +7,6 @@ firebase-admin
 pyserial
 streamlit-autorefresh
 fpdf2
+streamlit
+paho-mqtt
+fpdf
