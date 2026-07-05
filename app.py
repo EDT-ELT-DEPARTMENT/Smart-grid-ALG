@@ -188,6 +188,91 @@ def page_supervision(client_id, info):
     st.title("Smart-Grid SONELGAZ : Plateforme de Supervision et de Facturation")
     st.subheader(f"Supervision par Impulsions : {info['nom']} (Client: {client_id})")
 
+    # --- FACTEURS DE CONVERSION ---
+    # ÉLECTRICITÉ : À vérifier sur votre compteur (ex: 1000 imp/kWh = 0.001)
+    FACTEUR_IMP_ELEC_KWH = 0.001 
+    
+    # GAZ : Spécifique à votre compteur GALLUS 2000 et à Sonelgaz
+    FACTEUR_IMP_GAZ_M3 = 0.01  # 1 impulsion = 10 dm3 = 0.01 m3
+    COEF_SONELGAZ_PCS = 9.73   # Coefficient (Th/m3) - À lire sur votre facture !
+
+    # Initialisation des compteurs d'impulsions brutes
+    if 'imp_elec' not in st.session_state: st.session_state.imp_elec = 0
+    if 'imp_gaz' not in st.session_state: st.session_state.imp_gaz = 0
+
+    # --- GESTION DES MODES D'ACQUISITION ---
+    if mode_acquisition == "Mode Simulation":
+        st.info("🔧 **Mode Simulation** : Génération d'impulsions aléatoires.")
+        
+        if st.button("Simuler réception impulsions"):
+            nouvelles_imp_elec = random.randint(1, 5)
+            nouvelles_imp_gaz = random.randint(1, 3)
+
+            # Calculs de conversion d'énergie
+            energie_elec_kwh = nouvelles_imp_elec * FACTEUR_IMP_ELEC_KWH
+            
+            volume_gaz_m3 = nouvelles_imp_gaz * FACTEUR_IMP_GAZ_M3
+            energie_gaz_th = volume_gaz_m3 * COEF_SONELGAZ_PCS
+
+            last_elec = get_live_data(client_id, "Elec")
+            last_gaz = get_live_data(client_id, "Gaz")
+
+            conn = sqlite3.connect('monitoring_energie.db', check_same_thread=False)
+            c = conn.cursor()
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+            # On stocke l'énergie convertie (kWh et Th) dans le total_jour
+            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", 
+                      (now, "Elec", nouvelles_imp_elec, last_elec + energie_elec_kwh, client_id))
+            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", 
+                      (now, "Gaz", nouvelles_imp_gaz, last_gaz + energie_gaz_th, client_id))
+            conn.commit()
+            conn.close()
+            st.rerun()
+            
+    elif mode_acquisition == "Mode Réel (Carte TTGO)":
+        st.success("📡 **Mode Réel (IoT)** : Réception d'impulsions depuis l'ESP32.")
+        ip_ttgo = st.text_input("Adresse IP de la carte TTGO :", "192.168.1.50")
+        
+        if st.button("Acquérir les impulsions depuis la TTGO"):
+            try:
+                response = requests.get(f"http://{ip_ttgo}/impulsions", timeout=5)
+                if response.status_code == 200:
+                    data = response.json()
+                    nouvelles_imp_elec = int(data.get('imp_elec', 0))
+                    nouvelles_imp_gaz = int(data.get('imp_gaz', 0))
+
+                    # Calculs de conversion d'énergie
+                    energie_elec_kwh = nouvelles_imp_elec * FACTEUR_IMP_ELEC_KWH
+                    volume_gaz_m3 = nouvelles_imp_gaz * FACTEUR_IMP_GAZ_M3
+                    energie_gaz_th = volume_gaz_m3 * COEF_SONELGAZ_PCS
+
+                    last_elec = get_live_data(client_id, "Elec")
+                    last_gaz = get_live_data(client_id, "Gaz")
+
+                    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    conn = sqlite3.connect('monitoring_energie.db', check_same_thread=False)
+                    c = conn.cursor()
+                    c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", 
+                              (now, "Elec", nouvelles_imp_elec, last_elec + energie_elec_kwh, client_id))
+                    c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", 
+                              (now, "Gaz", nouvelles_imp_gaz, last_gaz + energie_gaz_th, client_id))
+                    conn.commit()
+                    conn.close()
+                    st.toast("✅ Impulsions acquises et converties avec succès !")
+                    st.rerun()
+                else:
+                    st.error(f"⚠️ Erreur de communication. Code HTTP: {response.status_code}")
+            except Exception as e:
+                st.error(f"❌ Erreur réseau : {e}")
+
+    # --- RESTE DU DASHBOARD (Inchangé) ---
+    # ...
+# --- PAGE 2 : SUPERVISION ---
+def page_supervision(client_id, info):
+    st.title("Smart-Grid SONELGAZ : Plateforme de Supervision et de Facturation")
+    st.subheader(f"Supervision par Impulsions : {info['nom']} (Client: {client_id})")
+
     # Facteur de conversion : 1 impulsion = combien de kWh/Th (à ajuster selon les spécifications de votre compteur)
     FACTEUR_IMPULSION = 1.0
 
