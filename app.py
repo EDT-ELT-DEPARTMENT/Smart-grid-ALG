@@ -29,7 +29,7 @@ CLIENTS = {
 
 # --- NAVIGATION ---
 st.sidebar.title("Navigation")
-st.sidebar.markdown("Plateforme de supervision et facturation d'électricité & de Gaz-SONELGAZ)
+st.sidebar.markdown("Plateforme de supervision et facturation d'électricité & de Gaz-SONELGAZ")
 
 selected_id = st.sidebar.selectbox("Choisir un abonné :", list(CLIENTS.keys()))
 client_info = CLIENTS[selected_id]
