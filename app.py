@@ -1,7 +1,6 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
-import time
 import random
 import io
 from datetime import datetime
@@ -41,11 +40,11 @@ selected_id = st.sidebar.selectbox("Choisir un abonné :", list(CLIENTS.keys()))
 client_info = CLIENTS[selected_id]
 page = st.sidebar.radio("Navigation", ["Facturation", "Supervision Temps Réel"])
 
-# --- FONCTION DE CALCUL DYNAMIQUE ---
-def get_live_data(client_id):
+# --- FONCTION DE RÉCUPÉRATION DONNÉES ---
+def get_live_data(client_id, type_energie):
     conn = sqlite3.connect('monitoring_energie.db')
-    query = "SELECT total_jour FROM mesures WHERE type_energie='Elec' AND client_id=? ORDER BY timestamp DESC LIMIT 1"
-    df = pd.read_sql_query(query, conn, params=(client_id,))
+    query = "SELECT total_jour FROM mesures WHERE type_energie=? AND client_id=? ORDER BY timestamp DESC LIMIT 1"
+    df = pd.read_sql_query(query, conn, params=(type_energie, client_id))
     conn.close()
     if not df.empty:
         return df['total_jour'].iloc[0]
@@ -56,23 +55,37 @@ def page_facturation(client_id, info):
     st.title("Plateforme de Facturation SONELGAZ")
     st.subheader("Direction de Distribution SIDI BEL ABBES")
 
-    total_conso = get_live_data(client_id)
+    # Récupération des totaux
+    conso_elec = get_live_data(client_id, "Elec")
+    conso_gaz = get_live_data(client_id, "Gaz")
     
-    qte_t1 = min(total_conso, 125.0)
-    qte_t2 = max(0, min(total_conso - 125.0, 125.0))
-    qte_t3 = max(0, total_conso - 250.0)
-
+    # Calcul Tranches Elec
+    qte_t1_e = min(conso_elec, 125.0)
+    qte_t2_e = max(0, min(conso_elec - 125.0, 125.0))
+    qte_t3_e = max(0, conso_elec - 250.0)
+    
     data_elec = [
-        {"tranche": "Tranche 1", "qte": qte_t1, "prix": 1.7787, "mt": qte_t1 * 1.7787},
-        {"tranche": "Tranche 2", "qte": qte_t2, "prix": 4.1789, "mt": qte_t2 * 4.1789},
-        {"tranche": "Tranche 3", "qte": qte_t3, "prix": 4.8120, "mt": qte_t3 * 4.8120}
+        {"tranche": "Tranche 1", "qte": qte_t1_e, "prix": 1.7787, "mt": qte_t1_e * 1.7787},
+        {"tranche": "Tranche 2", "qte": qte_t2_e, "prix": 4.1789, "mt": qte_t2_e * 4.1789},
+        {"tranche": "Tranche 3", "qte": qte_t3_e, "prix": 4.8120, "mt": qte_t3_e * 4.8120}
+    ]
+
+    # Calcul Tranches Gaz
+    qte_t1_g = min(conso_gaz, 1125.0)
+    qte_t2_g = max(0, min(conso_gaz - 1125.0, 1375.0))
+    qte_t3_g = max(0, conso_gaz - 2500.0)
+
+    data_gaz = [
+        {"tranche": "Tranche 1", "qte": qte_t1_g, "prix": 0.1682, "mt": qte_t1_g * 0.1682},
+        {"tranche": "Tranche 2", "qte": qte_t2_g, "prix": 0.3245, "mt": qte_t2_g * 0.3245},
+        {"tranche": "Tranche 3", "qte": qte_t3_g, "prix": 0.4025, "mt": qte_t3_g * 0.4025}
     ]
     
+    # Frais annexes
     redevance, tva_9, tva_19, droit, taxe = 164.16, 138.99, 301.19, 200.0, 200.0
-    sous_total_ht = sum([i['mt'] for i in data_elec])
-    net_ttc = sous_total_ht + redevance + tva_9 + tva_19 + droit + taxe
+    total_ht = sum([i['mt'] for i in data_elec]) + sum([i['mt'] for i in data_gaz])
+    net_ttc = total_ht + redevance + tva_9 + tva_19 + droit + taxe
 
-    # Ajout du header meta charset dans le HTML pour corriger l'affichage des accents
     facture_html = f"""
     <html>
     <head><meta http-equiv="Content-Type" content="text/html; charset=utf-8" /></head>
@@ -81,13 +94,21 @@ def page_facturation(client_id, info):
     <h2 style="color: #2980b9; text-align: center;">SONELGAZ - Détail de Facturation</h2>
     <p><strong>Facture n°:</strong> {info['facture']} | <strong>Client n°:</strong> {client_id}</p>
     <p><strong>Abonné :</strong> {info['nom']} | <strong>Lieu :</strong> {info['lieu']}</p>
-    <h3 style="color: #2980b9;">Électricité (Consommation : {total_conso:.2f} kWh)</h3>
+    
+    <h3 style="color: #2980b9;">Électricité (Total : {conso_elec:.2f} kWh)</h3>
     <table style="width:100%; border-collapse: collapse;">
     <tr style="background-color: #d6eaf8;"><th>Tranche</th><th>Quantité</th><th>Prix Unitaire</th><th>Montant HT</th></tr>
     {"".join([f"<tr><td>{i['tranche']}</td><td>{i['qte']:.2f}</td><td>{i['prix']:.4f}</td><td>{i['mt']:.2f}</td></tr>" for i in data_elec])}
     </table>
+
+    <h3 style="color: #e67e22;">Gaz (Total : {conso_gaz:.2f} m³)</h3>
+    <table style="width:100%; border-collapse: collapse;">
+    <tr style="background-color: #fbdac2;"><th>Tranche</th><th>Quantité</th><th>Prix Unitaire</th><th>Montant HT</th></tr>
+    {"".join([f"<tr><td>{i['tranche']}</td><td>{i['qte']:.2f}</td><td>{i['prix']:.4f}</td><td>{i['mt']:.2f}</td></tr>" for i in data_gaz])}
+    </table>
+
     <div style="margin-top: 20px; border-top: 2px solid #2980b9; padding-top: 10px;">
-    <p>Redevance fixe : {redevance} DA | TVA : {tva_9 + tva_19:.2f} DA</p>
+    <p>Redevance fixe : {redevance} DA | TVA : {tva_9 + tva_19:.2f} DA | Droit/Taxe : {droit + taxe:.2f} DA</p>
     <h2 style="color: #2980b9; text-align: right;">Net à payer : {net_ttc:.2f} DA</h2>
     </div>
     </div>
@@ -99,7 +120,6 @@ def page_facturation(client_id, info):
     col1, col2 = st.columns(2)
     col1.download_button("Télécharger HTML", facture_html, "facture.html", "text/html")
     
-    # Fonction PDF corrigée avec encoding='utf-8'
     def generate_pdf(html):
         result = io.BytesIO()
         pisa.CreatePDF(io.BytesIO(html.encode("utf-8")), dest=result, encoding='utf-8')
@@ -117,7 +137,7 @@ def page_supervision(client_id, info):
         c = conn.cursor()
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Elec", random.uniform(1.0, 4.0), random.uniform(50, 300), c_id))
-        c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", random.uniform(0.5, 1.5), random.uniform(5, 20), c_id))
+        c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", random.uniform(0.5, 1.5), random.uniform(5, 40), c_id))
         conn.commit()
         conn.close()
 
@@ -143,19 +163,15 @@ def page_supervision(client_id, info):
             st.line_chart(df[df['type_energie'] == 'Gaz'].set_index('timestamp')['valeur_actuelle'])
 
         st.divider()
-        st.subheader("État des Tranches de Consommation")
+        st.subheader("État des Tranches Électriques")
         col_t1, col_t2, col_t3 = st.columns(3)
-        
         conso_totale = elec_data['total_jour']
         t1_prog = min((conso_totale / 125.0) * 100, 100)
         col_t1.progress(t1_prog / 100, text=f"Tranche 1 (125 kWh) : {t1_prog:.1f}%")
-        
         t2_prog = min(max(((conso_totale - 125) / 125.0) * 100, 0), 100) if conso_totale > 125 else 0
         col_t2.progress(t2_prog / 100, text=f"Tranche 2 (125 kWh) : {t2_prog:.1f}%")
-        
         t3_prog = max(((conso_totale - 250) / 1000) * 100, 0) if conso_totale > 250 else 0
         col_t3.progress(min(t3_prog / 100, 1.0), text=f"Tranche 3 (Supp) : {t3_prog:.1f}%")
-
     else:
         st.info("En attente de données de la carte TTGO ESP32...")
 
