@@ -6,8 +6,8 @@ from xhtml2pdf import pisa
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="SONELGAZ - Facturation", layout="wide")
-st.title("Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA")
-st.subheader("Plateforme de Facturation SONELGAZ - Direction de Distribution SIDI BEL ABBES")
+st.title("Plateforme de Facturation SONELGAZ - Direction de Distribution SIDI BEL ABBES")
+st.subheader("")
 
 # --- DATABASE ---
 def get_db():
@@ -37,31 +37,44 @@ if clients:
     client_options = {f"{row[0]} - {row[1]}": row[0] for row in clients}
     selected_label = st.selectbox("Sélectionnez un abonné :", list(client_options.keys()))
     selected_ref = client_options[selected_label]
-    cursor.execute('SELECT nom, client_num, lieu_conso, facture_num, index_elec, index_gaz FROM abonnes WHERE reference_contrat = ?', (selected_ref,))
+    cursor.execute('SELECT nom, client_num, lieu_conso, facture_num FROM abonnes WHERE reference_contrat = ?', (selected_ref,))
     client_data = cursor.fetchone()
 
     if client_data:
-        nom, client_num, lieu_conso, fact_num, index_elec, index_gaz = client_data
-        # Calculs détaillés
-        cons_elec = 562.0
-        cons_gaz = 2708.40
-        montant_ht_elec = 2246.04
-        montant_ht_gaz = 719.30
-        abonnement = 164.16
+        nom, client_num, lieu_conso, fact_num = client_data
+        
+        # Données détaillées extraites de CamScanner 30-06-2026 18.29_2.pdf[cite: 2]
+        date_facture = "11/06/2026"
+        prochain_releve = "06/09/2026"
+        
+        # Électricité[cite: 2]
+        elec_tranche1 = 125.00
+        elec_tranche2 = 125.00
+        elec_tranche3 = 312.00
+        montant_elec_ht_9 = 744.70
+        montant_elec_ht_19 = 1501.34
+        
+        # Gaz[cite: 2]
+        gaz_tranche1 = 1125.00
+        gaz_tranche2 = 1375.00
+        gaz_tranche3 = 208.40
+        montant_gaz_ht_9 = 635.42
+        montant_gaz_ht_19 = 83.88
+        
+        # Taxes et Frais[cite: 2]
+        redevance_fixe = 164.16
         tva_9 = 138.99
         tva_19 = 301.19
         droit_fixe = 200.00
-        taxe_hab = 200.00
+        taxe_habitation = 200.00
         net_ttc = 3969.68
         timbre = 40.00
         total_espece = 4009.68
-        
-        date_facture = "11/06/2026"
-        prochain_releve = "06/09/2026"
 
+        # --- CODE HTML ---
         facture_html = f"""
-<div style="border: 2px solid #e67e22; padding: 20px; font-family: Arial, sans-serif;">
-<h2 style="color: #e67e22; text-align: center;">SONELGAZ - Facture de Consommation</h2>
+<div style="border: 2px solid #2980b9; padding: 20px; font-family: Arial, sans-serif;">
+<h2 style="color: #2980b9; text-align: center;">SONELGAZ - Facture de Consommation</h2>
 <div style="display: flex; justify-content: space-between;">
     <div>
         <p><strong>Facture n°:</strong> {fact_num}</p>
@@ -74,34 +87,39 @@ if clients:
         <p><strong>Prochaine relève :</strong> {prochain_releve}</p>
     </div>
 </div>
+
 <table style="width:100%; border-collapse: collapse; margin-top: 20px;">
-    <tr style="background-color: #f9e79f;">
-        <th style="border: 1px solid #000; padding: 8px;">Service</th>
-        <th style="border: 1px solid #000; padding: 8px;">Consommation</th>
+    <tr style="background-color: #d6eaf8;">
+        <th style="border: 1px solid #000; padding: 8px;">Détails Consommation</th>
+        <th style="border: 1px solid #000; padding: 8px;">Quantité</th>
         <th style="border: 1px solid #000; padding: 8px;">Montant HT (DA)</th>
     </tr>
-    <tr>
-        <td style="border: 1px solid #000; padding: 8px;">Électricité (Tranches 1, 2, 3)</td>
-        <td style="border: 1px solid #000; padding: 8px;">{cons_elec} kWh</td>
-        <td style="border: 1px solid #000; padding: 8px;">{montant_ht_elec:.2f}</td>
-    </tr>
-    <tr>
-        <td style="border: 1px solid #000; padding: 8px;">Gaz (Tranches 1, 2, 3)</td>
-        <td style="border: 1px solid #000; padding: 8px;">{cons_gaz} Th</td>
-        <td style="border: 1px solid #000; padding: 8px;">{montant_ht_gaz:.2f}</td>
-    </tr>
+    <tr><td colspan="3" style="background-color: #f2f2f2; font-weight: bold;">ÉLECTRICITÉ</td></tr>
+    <tr><td>Tranche 1</td><td>{elec_tranche1} kWh</td><td>-</td></tr>
+    <tr><td>Tranche 2</td><td>{elec_tranche2} kWh</td><td>-</td></tr>
+    <tr><td>Tranche 3</td><td>{elec_tranche3} kWh</td><td>-</td></tr>
+    <tr><td>Total HT (9% & 19%)</td><td>-</td><td>{montant_elec_ht_9 + montant_elec_ht_19:.2f}</td></tr>
+    
+    <tr><td colspan="3" style="background-color: #f2f2f2; font-weight: bold;">GAZ</td></tr>
+    <tr><td>Tranche 1</td><td>{gaz_tranche1} Th</td><td>-</td></tr>
+    <tr><td>Tranche 2</td><td>{gaz_tranche2} Th</td><td>-</td></tr>
+    <tr><td>Tranche 3</td><td>{gaz_tranche3} Th</td><td>-</td></tr>
+    <tr><td>Total HT (9% & 19%)</td><td>-</td><td>{montant_gaz_ht_9 + montant_gaz_ht_19:.2f}</td></tr>
 </table>
-<div style="margin-top: 20px;">
-    <p>Redevance fixe HT : {abonnement} DA</p>
-    <p>TVA (9% + 19%) : {(tva_9 + tva_19):.2f} DA</p>
-    <p>Droit fixe & Taxe habitation : {(droit_fixe + taxe_hab):.2f} DA</p>
-    <hr>
-    <h3 style="text-align: right; color: #d35400;">Net à payer TTC : {net_ttc:.2f} DA</h3>
+
+<div style="margin-top: 20px; border-top: 1px solid #000; padding-top: 10px;">
+    <p>Redevance fixe HT : {redevance_fixe} DA</p>
+    <p>TVA 9% : {tva_9} DA | TVA 19% : {tva_19} DA</p>
+    <p>Droit fixe sur consommation : {droit_fixe} DA</p>
+    <p>Taxe d'habitation : {taxe_habitation} DA</p>
+    <h3 style="text-align: right; color: #2980b9;">Net à payer TTC : {net_ttc:.2f} DA</h3>
     <p style="text-align: right;">Total avec timbre (espèces) : {total_espece:.2f} DA</p>
 </div>
 </div>
 """
         st.markdown(facture_html, unsafe_allow_html=True)
+        
+        # --- TÉLÉCHARGEMENT ---
         col1, col2 = st.columns(2)
         col1.download_button("Télécharger HTML", facture_html, "facture.html", "text/html")
         def generate_pdf(html_content):
