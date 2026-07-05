@@ -13,17 +13,18 @@ st.set_page_config(page_title="Smart-Grid SONELGAZ : Supervision Temps Réel et 
 
 # --- INITIALISATION DE LA BASE DE DONNÉES ---
 def init_db():
-    conn = sqlite3.connect('monitoring_energie.db')
+    # Ajout de check_same_thread=False pour éviter les erreurs de connexion avec Streamlit
+    conn = sqlite3.connect('monitoring_energie.db', check_same_thread=False)
     c = conn.cursor()
     c.execute("CREATE TABLE IF NOT EXISTS mesures (timestamp DATETIME, type_energie TEXT, valeur_actuelle REAL, total_jour REAL, client_id TEXT)")
     
-    # Insertion de données initiales simulant la facture pour le client principal
-    c.execute("SELECT COUNT(*) FROM mesures WHERE client_id='7314P001114'")
-    if c.fetchone()[0] == 0:
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        # Injection des valeurs de la facture (562 kWh et 2708.40 Th)
-        c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Elec", 0.0, 562.00, "7314P001114"))
-        c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", 0.0, 2708.40, "7314P001114"))
+    # Initialisation pour les clients si vide
+    for client_id in ["7314P001114", "7314P001115", "7314P001116"]:
+        c.execute("SELECT COUNT(*) FROM mesures WHERE client_id=?", (client_id,))
+        if c.fetchone()[0] == 0:
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Elec", 0.0, 562.00, client_id))
+            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", 0.0, 2708.40, client_id))
     
     conn.commit()
     conn.close()
@@ -37,12 +38,13 @@ CLIENTS = {
     "7314P001116": {"nom": "Client C", "facture": "733260603361", "lieu": "VILLA N°45 ZONE 02"}
 }
 
-# --- FONCTIONS DE CALCUL (Basées sur la facture Sonelgaz) ---
+# --- FONCTIONS DE CALCUL ---
 def calculer_facture(conso_elec, conso_gaz):
-    # 1. Électricité
+    # Logique progressive des tranches
     e1 = min(conso_elec, 125.0)
     e2 = max(0, min(conso_elec - 125.0, 125.0))
     e3 = max(0, conso_elec - 250.0)
+    
     data_elec = [
         {"tranche": "Tranche 1", "qte": e1, "prix": 1.7787, "mt": e1 * 1.7787},
         {"tranche": "Tranche 2", "qte": e2, "prix": 4.1789, "mt": e2 * 4.1789},
@@ -50,10 +52,10 @@ def calculer_facture(conso_elec, conso_gaz):
     ]
     ht_elec = sum([i['mt'] for i in data_elec])
     
-    # 2. Gaz
     g1 = min(conso_gaz, 1125.0)
     g2 = max(0, min(conso_gaz - 1125.0, 1375.0))
     g3 = max(0, conso_gaz - 2500.0)
+    
     data_gaz = [
         {"tranche": "Tranche 1", "qte": g1, "prix": 0.1682, "mt": g1 * 0.1682},
         {"tranche": "Tranche 2", "qte": g2, "prix": 0.3245, "mt": g2 * 0.3245},
@@ -61,245 +63,90 @@ def calculer_facture(conso_elec, conso_gaz):
     ]
     ht_gaz = sum([i['mt'] for i in data_gaz])
     
-    # 3. Taxes et Redevances Exactes
-    redevance_fixe_ht = 164.16
-    tva_9 = 138.99 
-    tva_19 = 301.19
-    droit_fixe = 200.00
-    taxe_habitation = 200.00
-    timbre = 40.00
-    
+    # Taxes
     total_ht = ht_elec + ht_gaz
-    total_taxes = redevance_fixe_ht + tva_9 + tva_19 + droit_fixe + taxe_habitation
-    
-    # Net à payer et espèces
+    total_taxes = 164.16 + 138.99 + 301.19 + 200.00 + 200.00
     net_ttc = total_ht + total_taxes
-    total_especes = net_ttc + timbre
+    total_especes = net_ttc + 40.00
     
-    details_taxes = {
-        "Redevances fixes HT": redevance_fixe_ht,
-        "TVA 9%": tva_9,
-        "TVA 19%": tva_19,
-        "Droit Fixe": droit_fixe,
-        "Taxe habitation": taxe_habitation,
-        "Timbre": timbre
-    }
+    details_taxes = {"Redevances fixes HT": 164.16, "TVA 9%": 138.99, "TVA 19%": 301.19, "Droit Fixe": 200.00, "Taxe habitation": 200.00, "Timbre": 40.00}
     
     return data_elec, data_gaz, ht_elec, ht_gaz, total_ht, total_taxes, net_ttc, total_especes, details_taxes
 
-# --- FONCTION RÉCUPÉRATION ---
 def get_live_data(client_id, type_energie):
-    conn = sqlite3.connect('monitoring_energie.db')
+    conn = sqlite3.connect('monitoring_energie.db', check_same_thread=False)
     query = "SELECT total_jour FROM mesures WHERE type_energie=? AND client_id=? ORDER BY timestamp DESC LIMIT 1"
     df = pd.read_sql_query(query, conn, params=(type_energie, client_id))
     conn.close()
     return df['total_jour'].iloc[0] if not df.empty else 0.0
 
-# --- NAVIGATION SIDEBAR ---
+# --- NAVIGATION ---
 st.sidebar.title("Navigation")
 st.sidebar.markdown("**Smart-Grid SONELGAZ : Supervision Temps Réel et Facturation**")
-
 selected_id = st.sidebar.selectbox("Choisir un abonné :", list(CLIENTS.keys()))
 client_info = CLIENTS[selected_id]
-
 mode_acquisition = st.sidebar.radio("Mode d'acquisition :", ["Mode Simulation", "Mode Réel (Carte TTGO)"])
 page = st.sidebar.radio("Navigation", ["Facturation", "Supervision Temps Réel"])
 
-# --- PAGE 1 : FACTURATION ---
+# --- PAGE FACTURATION ---
 def page_facturation(client_id, info):
     st.title("Smart-Grid SONELGAZ : Facturation Détaillée")
-    st.info(f"**Client :** {info['nom']} | **N° Client :** {client_id} | **N° Facture :** {info['facture']} | **Lieu :** {info['lieu']}")
-
+    st.info(f"**Client :** {info['nom']} | **N° Client :** {client_id}")
+    
     conso_elec = get_live_data(client_id, "Elec")
     conso_gaz = get_live_data(client_id, "Gaz")
-
     data_elec, data_gaz, ht_elec, ht_gaz, total_ht, taxes, net_ttc, total_especes, det_taxes = calculer_facture(conso_elec, conso_gaz)
-
+    
+    # Génération du HTML
     facture_html = f"""
-    <style>
-        .invoice-box {{ font-family: 'Arial', sans-serif; padding: 25px; border: 1px solid #d1d1d1; background: #fff; }}
-        .header {{ background-color: #004a99; color: white; padding: 15px; text-align: center; margin-bottom: 20px; }}
-        .client-section {{ background-color: #f8f9fa; padding: 15px; border-left: 5px solid #004a99; margin-bottom: 20px; }}
-        table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px; }}
-        th {{ background-color: #005bb5; color: white; padding: 10px; text-align: left; }}
-        td {{ padding: 8px; border-bottom: 1px solid #ddd; }}
-        .summary {{ background-color: #eef6ff; padding: 15px; border: 1px solid #004a99; margin-top: 20px; }}
-        .grid-container {{ display: flex; justify-content: space-between; }}
-        .tax-box {{ width: 48%; }}
-    </style>
-    <div class="invoice-box">
-        <div class="header"><h2>SONELGAZ - Facture de consommation</h2></div>
-        
-        <div class="client-section">
-            <p><strong>Nom du client :</strong> {info['nom']}</p>
-            <p><strong>N° Client :</strong> {client_id}</p>
-            <p><strong>N° Facture :</strong> {info['facture']}</p>
-            <p><strong>Lieu de consommation :</strong> {info['lieu']}</p>
-        </div>
-        
-        <h3>⚡ Électricité ({conso_elec:.2f} kWh)</h3>
-        <table>
-            <tr><th>Tranche</th><th>Quantité</th><th>Prix Unitaire</th><th>Montant HT</th></tr>
-            {"".join([f"<tr><td>{i['tranche']}</td><td>{i['qte']:.2f}</td><td>{i['prix']:.4f}</td><td>{i['mt']:.2f}</td></tr>" for i in data_elec])}
-        </table>
-        
-        <h3>🔥 Gaz ({conso_gaz:.2f} Th)</h3>
-        <table>
-            <tr><th>Tranche</th><th>Quantité</th><th>Prix Unitaire</th><th>Montant HT</th></tr>
-            {"".join([f"<tr><td>{i['tranche']}</td><td>{i['qte']:.2f}</td><td>{i['prix']:.4f}</td><td>{i['mt']:.2f}</td></tr>" for i in data_gaz])}
-        </table>
-        
-        <div class="summary">
-            <div class="grid-container">
-                <div class="tax-box">
-                    <h4>Détail des Taxes et Redevances</h4>
-                    <p>Redevances fixes HT : {det_taxes['Redevances fixes HT']:.2f} DA</p>
-                    <p>TVA à 9% : {det_taxes['TVA 9%']:.2f} DA</p>
-                    <p>TVA à 19% : {det_taxes['TVA 19%']:.2f} DA</p>
-                    <p>Droit Fixe sur consommation : {det_taxes['Droit Fixe']:.2f} DA</p>
-                    <p>Taxe habitation : {det_taxes['Taxe habitation']:.2f} DA</p>
-                </div>
-                <div class="tax-box">
-                    <h4>Récapitulatif Financier</h4>
-                    <p>Total Montant HT : <strong>{total_ht:.2f} DA</strong></p>
-                    <p>Total Taxes : <strong>{taxes:.2f} DA</strong></p>
-                    <h3 style="color: #004a99; margin-bottom: 5px;">NET À PAYER TTC : {net_ttc:.2f} DA</h3>
-                    <p>Timbre (paiement en espèce) : {det_taxes['Timbre']:.2f} DA</p>
-                    <h3 style="color: #c0392b; margin-top: 5px;">TOTAL À PAYER (espèces) : {total_especes:.2f} DA</h3>
-                </div>
-            </div>
-        </div>
+    <div style="font-family: sans-serif; padding: 20px; border: 1px solid #ccc;">
+        <h2>SONELGAZ - Facture</h2>
+        <p><strong>Électricité:</strong> {conso_elec:.2f} kWh</p>
+        <p><strong>Gaz:</strong> {conso_gaz:.2f} Th</p>
+        <hr>
+        <h3>Détails Électricité</h3>
+        <ul>{"".join([f"<li>{i['tranche']}: {i['qte']:.2f} kWh -> {i['mt']:.2f} DA</li>" for i in data_elec])}</ul>
+        <h3>Net à payer TTC: {net_ttc:.2f} DA</h3>
     </div>
     """
-    
-    components.html(facture_html, height=1050, scrolling=True)
+    components.html(facture_html, height=600)
 
-    def generate_pdf(html_string):
-        result = io.BytesIO()
-        pisa.CreatePDF(html_string, dest=result, encoding='utf-8')
-        return result.getvalue()
-
-    col1, col2 = st.columns(2)
-    col1.download_button("Télécharger HTML", facture_html, "facture.html", "text/html")
-    col2.download_button("Télécharger PDF", generate_pdf(facture_html), "facture.pdf", "application/pdf")
-
-# --- PAGE 2 : SUPERVISION ---
+# --- PAGE SUPERVISION ---
 def page_supervision(client_id, info):
     st.title("Smart-Grid SONELGAZ : Supervision Temps Réel")
-    st.subheader(f"Supervision Temps Réel : {info['nom']} (Client: {client_id})")
-
-    # Initialisation des variables Smart-Grid dans session_state si absentes
+    
     if 'tension' not in st.session_state: st.session_state.tension = 230.0
-    if 'courant' not in st.session_state: st.session_state.courant = 0.0
-    if 'cos_phi' not in st.session_state: st.session_state.cos_phi = 0.95
-    if 'puissance_kw' not in st.session_state: st.session_state.puissance_kw = 0.0
-
-    # --- GESTION DES MODES D'ACQUISITION ---
+    
     if mode_acquisition == "Mode Simulation":
-        st.info("🔧 **Mode Simulation** : Génération de valeurs aléatoires pour simuler la consommation et le réseau.")
-        
-        if st.button("Rafraîchir les données (Simulation)"):
-            st.session_state.tension = random.uniform(220.0, 240.0)
-            st.session_state.courant = random.uniform(1.0, 15.0)
-            st.session_state.cos_phi = random.uniform(0.85, 1.0)
-            st.session_state.puissance_kw = (st.session_state.tension * st.session_state.courant * st.session_state.cos_phi) / 1000
-
-            conn = sqlite3.connect('monitoring_energie.db')
+        if st.button("Simuler une impulsion"):
+            # Récupération des valeurs actuelles
+            curr_elec = get_live_data(client_id, "Elec")
+            curr_gaz = get_live_data(client_id, "Gaz")
+            
+            # Incrémentation (Impulsions)
+            new_elec = curr_elec + random.uniform(0.5, 2.0)
+            new_gaz = curr_gaz + random.uniform(0.1, 0.5)
+            
+            conn = sqlite3.connect('monitoring_energie.db', check_same_thread=False)
             c = conn.cursor()
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Elec", random.uniform(1.0, 4.0), get_live_data(client_id, "Elec") + random.uniform(0.5, 2.5), client_id))
-            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", random.uniform(0.5, 1.5), get_live_data(client_id, "Gaz") + random.uniform(0.1, 1.0), client_id))
+            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Elec", 1.0, new_elec, client_id))
+            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", 1.0, new_gaz, client_id))
             conn.commit()
             conn.close()
             st.rerun()
-            
-    elif mode_acquisition == "Mode Réel (Carte TTGO)":
-        st.success("📡 **Mode Réel (IoT)** : Communication avec la carte ESP32 TTGO sur le réseau local.")
-        ip_ttgo = st.text_input("Adresse IP de la carte TTGO (ex: 192.168.1.50) :", "192.168.1.50")
-        
-        if st.button("Acquérir les index depuis la TTGO"):
-            try:
-                url_ttgo = f"http://{ip_ttgo}/mesures"
-                response = requests.get(url_ttgo, timeout=5)
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    
-                    st.session_state.tension = float(data.get('v', 230.0))
-                    st.session_state.courant = float(data.get('i', 0.0))
-                    st.session_state.cos_phi = float(data.get('pf', 0.95))
-                    st.session_state.puissance_kw = float(data.get('kw', 0.0))
 
-                    elec_reel = float(data.get('elec', get_live_data(client_id, "Elec")))
-                    gaz_reel = float(data.get('gaz', get_live_data(client_id, "Gaz")))
+    # Affichage dynamique basé sur la DB
+    elec_val = get_live_data(client_id, "Elec")
+    data_elec, _, _, _, _, _, _, _, _ = calculer_facture(elec_val, get_live_data(client_id, "Gaz"))
+    
+    st.subheader(f"Total Élec actuel : {elec_val:.2f} kWh")
+    cols = st.columns(3)
+    for i, tranche in enumerate(data_elec):
+        cols[i].metric(tranche['tranche'], f"{tranche['qte']:.2f} kWh")
+        cols[i].progress(min(tranche['qte'] / (125 if i<2 else 1000), 1.0))
 
-                    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    conn = sqlite3.connect('monitoring_energie.db')
-                    c = conn.cursor()
-                    c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Elec", 0.0, elec_reel, client_id))
-                    c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", 0.0, gaz_reel, client_id))
-                    conn.commit()
-                    conn.close()
-                    st.toast("✅ Données réseaux et index acquises avec succès !")
-                    st.rerun()
-                else:
-                    st.error(f"⚠️ Erreur de communication avec la TTGO. Code HTTP: {response.status_code}")
-            except Exception as e:
-                st.error(f"❌ Erreur lors de la connexion : {e}")
-
-    # --- DASHBOARD SMART-GRID ---
-    st.markdown("### 📊 État du Réseau Électrique (Smart-Grid)")
-    col_grid1, col_grid2, col_grid3, col_grid4 = st.columns(4)
-    col_grid1.metric("⚡ Tension", f"{st.session_state.tension:.1f} V")
-    col_grid2.metric("🔌 Courant", f"{st.session_state.courant:.2f} A")
-    col_grid3.metric("📐 Cos $\phi$", f"{st.session_state.cos_phi:.2f}")
-    col_grid4.metric("📈 Puissance", f"{st.session_state.puissance_kw:.2f} kW")
-    st.divider()
-
-    # --- AFFICHAGE DES DONNÉES DE CONSOMMATION ---
-    conn = sqlite3.connect('monitoring_energie.db')
-    df = pd.read_sql_query("SELECT * FROM mesures WHERE client_id=? ORDER BY timestamp DESC LIMIT 20", conn, params=(client_id,))
-    conn.close()
-
-    if not df.empty:
-        elec_val = df[df['type_energie'] == 'Elec'].iloc[0]['total_jour']
-        gaz_val = df[df['type_energie'] == 'Gaz'].iloc[0]['total_jour']
-
-        data_elec, data_gaz, _, _, _, _, _, _, _ = calculer_facture(elec_val, gaz_val)
-
-        # Tranches Électricité
-        st.markdown("### ⚡ Consommation Électricité par Tranche")
-        cols_e = st.columns(3)
-        for i, tranche in enumerate(data_elec):
-            limit = 125 if i==0 else 125 if i==1 else 1000
-            cols_e[i].metric(tranche['tranche'], f"{tranche['qte']:.2f} kWh")
-            cols_e[i].progress(min(tranche['qte'] / limit, 1.0))
-
-        st.markdown("---")
-
-        # Tranches Gaz
-        st.markdown("### 🔥 Consommation Gaz par Tranche")
-        cols_g = st.columns(3)
-        for i, tranche in enumerate(data_gaz):
-            limit = 1125 if i==0 else 1375 if i==1 else 1000
-            cols_g[i].metric(tranche['tranche'], f"{tranche['qte']:.2f} Th")
-            cols_g[i].progress(min(tranche['qte'] / limit, 1.0))
-
-        st.markdown("---")
-        
-        st.subheader("Évolution Historique (Dernières lectures)")
-        col1, col2 = st.columns(2)
-        with col1: 
-            st.write("Électricité (Total Jour)")
-            st.line_chart(df[df['type_energie'] == 'Elec'].set_index('timestamp')['total_jour'])
-        with col2: 
-            st.write("Gaz (Total Jour)")
-            st.line_chart(df[df['type_energie'] == 'Gaz'].set_index('timestamp')['total_jour'])
-    else: 
-        st.warning("Données indisponibles.")
-
-# --- ROUTAGE ---
 if page == "Facturation":
     page_facturation(selected_id, client_info)
-elif page == "Supervision Temps Réel":
+else:
     page_supervision(selected_id, client_info)
