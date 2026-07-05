@@ -29,7 +29,7 @@ CLIENTS = {
 
 # --- NAVIGATION ---
 st.sidebar.title("Navigation")
-st.sidebar.markdown("**Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA**")
+st.sidebar.markdown("**Plateforme de supervision et facturation d'électricité & de Gaz-SONELGAZ)
 
 selected_id = st.sidebar.selectbox("Choisir un abonné :", list(CLIENTS.keys()))
 client_info = CLIENTS[selected_id]
@@ -47,10 +47,13 @@ def get_live_data(client_id, type_energie):
 def page_facturation(client_id, info):
     st.title("Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA")
     
+    # Affichage des infos client dans l'interface
+    st.info(f"**Client :** {info['nom']} | **N° Facture :** {info['facture']} | **Lieu :** {info['lieu']}")
+
     conso_elec = get_live_data(client_id, "Elec")
     conso_gaz = get_live_data(client_id, "Gaz")
 
-    # Calculs
+    # Calculs Tranches
     data_elec = [
         {"tranche": "Tranche 1", "qte": min(conso_elec, 125.0), "prix": 1.7787},
         {"tranche": "Tranche 2", "qte": max(0, min(conso_elec - 125.0, 125.0)), "prix": 4.1789},
@@ -71,21 +74,25 @@ def page_facturation(client_id, info):
     total_ht = ht_elec + ht_gaz
     net_ttc = total_ht + taxes
 
-    # HTML avec design Bleu Professionnel
+    # HTML design Bleu
     facture_html = f"""
     <style>
-        .invoice-box {{ font-family: 'Arial', sans-serif; padding: 30px; border: 1px solid #d1d1d1; background: #fff; border-radius: 10px; }}
-        .header {{ background-color: #004a99; color: white; padding: 15px; text-align: center; border-radius: 5px; margin-bottom: 20px; }}
-        table {{ width: 100%; border-collapse: collapse; margin: 15px 0; }}
-        th {{ background-color: #005bb5; color: white; padding: 12px; text-align: left; }}
-        td {{ padding: 10px; border-bottom: 1px solid #ddd; }}
-        tr:nth-child(even) {{ background-color: #f2f7ff; }}
-        .summary-box {{ background-color: #eef6ff; padding: 15px; border-left: 5px solid #004a99; margin-top: 20px; }}
-        .total-line {{ font-size: 1.2em; font-weight: bold; color: #004a99; }}
+        .invoice-box {{ font-family: 'Arial', sans-serif; padding: 25px; border: 1px solid #d1d1d1; background: #fff; }}
+        .header {{ background-color: #004a99; color: white; padding: 15px; text-align: center; margin-bottom: 20px; }}
+        .client-section {{ background-color: #f8f9fa; padding: 15px; border-left: 5px solid #004a99; margin-bottom: 20px; }}
+        table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; }}
+        th {{ background-color: #005bb5; color: white; padding: 10px; text-align: left; }}
+        td {{ padding: 8px; border-bottom: 1px solid #ddd; }}
+        .summary {{ background-color: #eef6ff; padding: 15px; border: 1px solid #004a99; }}
     </style>
     <div class="invoice-box">
         <div class="header"><h2>SONELGAZ - Détail de Facturation</h2></div>
-        <p><strong>Abonné :</strong> {info['nom']} | <strong>Lieu :</strong> {info['lieu']}</p>
+        
+        <div class="client-section">
+            <p><strong>Nom du client :</strong> {info['nom']}</p>
+            <p><strong>N° de Facture :</strong> {info['facture']}</p>
+            <p><strong>Adresse / Lieu :</strong> {info['lieu']}</p>
+        </div>
         
         <h3>⚡ Électricité</h3>
         <table>
@@ -99,17 +106,18 @@ def page_facturation(client_id, info):
             {"".join([f"<tr><td>{i['tranche']}</td><td>{i['qte']:.2f}</td><td>{i['prix']:.4f}</td><td>{i['mt']:.2f}</td></tr>" for i in data_gaz])}
         </table>
         
-        <div class="summary-box">
+        <div class="summary">
             <p>Total HT Électricité : {ht_elec:.2f} DA</p>
             <p>Total HT Gaz : {ht_gaz:.2f} DA</p>
-            <p class="total-line">TOTAL GLOBAL HT : {total_ht:.2f} DA</p>
+            <p><strong>TOTAL GLOBAL HT : {total_ht:.2f} DA</strong></p>
             <p>Taxes et Redevances : {taxes:.2f} DA</p>
-            <h2 style="color: #c0392b;">NET À PAYER (TTC) : {net_ttc:.2f} DA</h2>
+            <h2 style="color: #004a99;">NET À PAYER (TTC) : {net_ttc:.2f} DA</h2>
         </div>
     </div>
     """
     
-    components.html(facture_html, height=850, scrolling=True)
+    # Rendu propre
+    components.html(facture_html, height=900, scrolling=True)
 
     def generate_pdf(html_string):
         result = io.BytesIO()
@@ -124,8 +132,7 @@ def page_facturation(client_id, info):
 def page_supervision(client_id, info):
     st.title("Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA")
     st.subheader(f"Supervision : {info['nom']}")
-    
-    # [Le reste du code supervision reste identique]
+    # ... (le reste du code supervision reste identique)
     conn = sqlite3.connect('monitoring_energie.db')
     df = pd.read_sql_query("SELECT * FROM mesures WHERE client_id=? ORDER BY timestamp DESC LIMIT 20", conn, params=(client_id,))
     conn.close()
