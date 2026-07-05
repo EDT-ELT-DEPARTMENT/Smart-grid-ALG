@@ -182,36 +182,27 @@ def page_facturation(client_id, info):
     col1, col2 = st.columns(2)
     col1.download_button("Télécharger HTML", facture_html, "facture.html", "text/html")
     col2.download_button("Télécharger PDF", generate_pdf(facture_html), "facture.pdf", "application/pdf")
-    # --- PAGE 2 : SUPERVISION ---
-    def page_supervision(client_id, info):
-        st.title("Smart-Grid SONELGAZ : Plateforme de Supervision et de Facturation")
-        st.subheader(f"Supervision par Impulsions : {info['nom']} (Client: {client_id})")
 
-    # --- FACTEURS DE CONVERSION ---
-    # ÉLECTRICITÉ : À vérifier sur votre compteur (ex: 1000 imp/kWh = 0.001)
-    FACTEUR_IMP_ELEC_KWH = 0.001 
-    
-    # GAZ : Spécifique à votre compteur GALLUS 2000 et à Sonelgaz
-    FACTEUR_IMP_GAZ_M3 = 0.01  # 1 impulsion = 10 dm3 = 0.01 m3
-    COEF_SONELGAZ_PCS = 9.73   # Coefficient (Th/m3) - À lire sur votre facture !
+# --- PAGE 2 : SUPERVISION ---
+def page_supervision(client_id, info):
+    st.title("Smart-Grid SONELGAZ : Plateforme de Supervision et de Facturation")
+    st.subheader(f"Supervision par Impulsions : {info['nom']} (Client: {client_id})")
 
-    # Initialisation des compteurs d'impulsions brutes
+    # Facteur de conversion : 1 impulsion = combien de kWh/Th (à ajuster selon les spécifications de votre compteur)
+    FACTEUR_IMPULSION = 1.0
+
+    # Initialisation des compteurs d'impulsions dans session_state
     if 'imp_elec' not in st.session_state: st.session_state.imp_elec = 0
     if 'imp_gaz' not in st.session_state: st.session_state.imp_gaz = 0
 
     # --- GESTION DES MODES D'ACQUISITION ---
     if mode_acquisition == "Mode Simulation":
-        st.info("🔧 **Mode Simulation** : Génération d'impulsions aléatoires.")
+        st.info("🔧 **Mode Simulation** : Génération d'impulsions aléatoires pour simuler le comptage.")
         
         if st.button("Simuler réception impulsions"):
+            # Simulation de la réception de nouvelles impulsions
             nouvelles_imp_elec = random.randint(1, 5)
             nouvelles_imp_gaz = random.randint(1, 3)
-
-            # Calculs de conversion d'énergie
-            energie_elec_kwh = nouvelles_imp_elec * FACTEUR_IMP_ELEC_KWH
-            
-            volume_gaz_m3 = nouvelles_imp_gaz * FACTEUR_IMP_GAZ_M3
-            energie_gaz_th = volume_gaz_m3 * COEF_SONELGAZ_PCS
 
             last_elec = get_live_data(client_id, "Elec")
             last_gaz = get_live_data(client_id, "Gaz")
@@ -219,32 +210,28 @@ def page_facturation(client_id, info):
             conn = sqlite3.connect('monitoring_energie.db', check_same_thread=False)
             c = conn.cursor()
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            
-            # On stocke l'énergie convertie (kWh et Th) dans le total_jour
-            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", 
-                      (now, "Elec", nouvelles_imp_elec, last_elec + energie_elec_kwh, client_id))
-            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", 
-                      (now, "Gaz", nouvelles_imp_gaz, last_gaz + energie_gaz_th, client_id))
+            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Elec", nouvelles_imp_elec, last_elec + (nouvelles_imp_elec * FACTEUR_IMPULSION), client_id))
+            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", nouvelles_imp_gaz, last_gaz + (nouvelles_imp_gaz * FACTEUR_IMPULSION), client_id))
             conn.commit()
             conn.close()
             st.rerun()
             
     elif mode_acquisition == "Mode Réel (Carte TTGO)":
-        st.success("📡 **Mode Réel (IoT)** : Réception d'impulsions depuis l'ESP32.")
-        ip_ttgo = st.text_input("Adresse IP de la carte TTGO :", "192.168.1.50")
+        st.success("📡 **Mode Réel (IoT)** : Réception d'impulsions depuis la carte ESP32 TTGO sur le réseau local.")
+        ip_ttgo = st.text_input("Adresse IP de la carte TTGO (ex: 192.168.1.50) :", "192.168.1.50")
         
         if st.button("Acquérir les impulsions depuis la TTGO"):
             try:
-                response = requests.get(f"http://{ip_ttgo}/impulsions", timeout=5)
+                # On interroge l'endpoint JSON de la carte TTGO (ex: {"imp_elec": 12, "imp_gaz": 3})
+                url_ttgo = f"http://{ip_ttgo}/impulsions"
+                response = requests.get(url_ttgo, timeout=5)
+                
                 if response.status_code == 200:
                     data = response.json()
+                    
+                    # Récupération des nouvelles impulsions
                     nouvelles_imp_elec = int(data.get('imp_elec', 0))
                     nouvelles_imp_gaz = int(data.get('imp_gaz', 0))
-
-                    # Calculs de conversion d'énergie
-                    energie_elec_kwh = nouvelles_imp_elec * FACTEUR_IMP_ELEC_KWH
-                    volume_gaz_m3 = nouvelles_imp_gaz * FACTEUR_IMP_GAZ_M3
-                    energie_gaz_th = volume_gaz_m3 * COEF_SONELGAZ_PCS
 
                     last_elec = get_live_data(client_id, "Elec")
                     last_gaz = get_live_data(client_id, "Gaz")
@@ -252,18 +239,16 @@ def page_facturation(client_id, info):
                     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     conn = sqlite3.connect('monitoring_energie.db', check_same_thread=False)
                     c = conn.cursor()
-                    c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", 
-                              (now, "Elec", nouvelles_imp_elec, last_elec + energie_elec_kwh, client_id))
-                    c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", 
-                              (now, "Gaz", nouvelles_imp_gaz, last_gaz + energie_gaz_th, client_id))
+                    c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Elec", nouvelles_imp_elec, last_elec + (nouvelles_imp_elec * FACTEUR_IMPULSION), client_id))
+                    c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", nouvelles_imp_gaz, last_gaz + (nouvelles_imp_gaz * FACTEUR_IMPULSION), client_id))
                     conn.commit()
                     conn.close()
                     st.toast("✅ Impulsions acquises et converties avec succès !")
                     st.rerun()
                 else:
-                    st.error(f"⚠️ Erreur de communication. Code HTTP: {response.status_code}")
+                    st.error(f"⚠️ Erreur de communication avec la TTGO. Code HTTP: {response.status_code}")
             except Exception as e:
-                st.error(f"❌ Erreur réseau : {e}")
+                st.error(f"❌ Erreur lors de la connexion : {e}")
 
     # --- DASHBOARD IMPULSIONS ---
     conn = sqlite3.connect('monitoring_energie.db', check_same_thread=False)
@@ -278,24 +263,19 @@ def page_facturation(client_id, info):
         if not df_elec.empty: elec_val = df_elec.iloc[0]['total_jour']
         if not df_gaz.empty: gaz_val = df_gaz.iloc[0]['total_jour']
 
-    st.markdown("### 📊 État du Comptage (Impulsions Brutes)")
+    st.markdown("### 📊 État du Comptage (Impulsions)")
     col_grid1, col_grid2 = st.columns(2)
-    
-    # Recalcul inverse pour afficher le nombre d'impulsions physiques reçues depuis l'origine
-    total_imp_elec = int(elec_val / FACTEUR_IMP_ELEC_KWH) if FACTEUR_IMP_ELEC_KWH > 0 else 0
-    total_imp_gaz = int(gaz_val / (FACTEUR_IMP_GAZ_M3 * COEF_SONELGAZ_PCS)) if (FACTEUR_IMP_GAZ_M3 * COEF_SONELGAZ_PCS) > 0 else 0
-    
-    col_grid1.metric("⚡ Total Impulsions Élec", f"{total_imp_elec} pulses")
-    col_grid2.metric("🔥 Total Impulsions Gaz", f"{total_imp_gaz} pulses")
+    # On recalcule le nombre total d'impulsions à partir de la valeur en base
+    col_grid1.metric("⚡ Total Impulsions Élec", f"{int(elec_val / FACTEUR_IMPULSION)} pulses")
+    col_grid2.metric("🔥 Total Impulsions Gaz", f"{int(gaz_val / FACTEUR_IMPULSION)} pulses")
     st.divider()
 
     # --- AFFICHAGE DES DONNÉES DE CONSOMMATION ---
     if not df.empty:
-        # Appel de la fonction de facturation avec les valeurs converties (kWh et Th)
         data_elec, data_gaz, _, _, _, _, _, _, _ = calculer_facture(elec_val, gaz_val)
 
         # Tranches Électricité
-        st.markdown("### ⚡ Consommation Électricité par Tranche (kWh)")
+        st.markdown("### ⚡ Consommation Électricité par Tranche")
         cols_e = st.columns(3)
         for i, tranche in enumerate(data_elec):
             limit = 125.0 if i==0 else 125.0 if i==1 else 1000.0
@@ -305,7 +285,7 @@ def page_facturation(client_id, info):
         st.markdown("---")
 
         # Tranches Gaz
-        st.markdown("### 🔥 Consommation Gaz par Tranche (Thermies)")
+        st.markdown("### 🔥 Consommation Gaz par Tranche")
         cols_g = st.columns(3)
         for i, tranche in enumerate(data_gaz):
             limit = 1125.0 if i==0 else 1375.0 if i==1 else 1000.0
@@ -317,10 +297,16 @@ def page_facturation(client_id, info):
         st.subheader("Évolution Historique (Dernières lectures)")
         col1, col2 = st.columns(2)
         with col1: 
-            st.write("Électricité (Unités Cumulées - kWh)")
+            st.write("Électricité (Unités Cumulées)")
             if not df_elec.empty: st.line_chart(df_elec.set_index('timestamp')['total_jour'])
         with col2: 
-            st.write("Gaz (Unités Cumulées - Th)")
+            st.write("Gaz (Unités Cumulées)")
             if not df_gaz.empty: st.line_chart(df_gaz.set_index('timestamp')['total_jour'])
     else: 
-        st.warning("Données indisponibles. Effectuez une simulation ou une acquisition réelle.")
+        st.warning("Données indisponibles.")
+
+# --- ROUTAGE ---
+if page == "Facturation":
+    page_facturation(selected_id, client_info)
+elif page == "Supervision Temps Réel":
+    page_supervision(selected_id, client_info)
