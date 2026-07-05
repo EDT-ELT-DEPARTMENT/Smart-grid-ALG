@@ -12,3 +12,6 @@ paho-mqtt
 fpdf
 streamlit
 weasyprint
+streamlit
+weasyprint
+cffi
