@@ -185,7 +185,7 @@ def page_facturation(client_id, info):
 
 # --- PAGE 2 : SUPERVISION ---
 def page_supervision(client_id, info):
-    st.title("Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA")
+    st.title("Smart-Grid SONELGAZ : Plateforme de Supervision et de Facturation")
     st.subheader(f"Supervision par Impulsions : {info['nom']} (Client: {client_id})")
 
     # Facteur de conversion : 1 impulsion = combien de kWh/Th (à ajuster selon les spécifications de votre compteur)
