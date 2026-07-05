@@ -140,199 +140,197 @@ if client_data:
 
     # --- GÉNÉRATION DE LA FACTURE HTML/CSS ---
     st.markdown("""
-    <style>
-        .facture-container { font-family: 'Arial', sans-serif; background-color: white; color: black; padding: 40px; border: 1px solid #ccc; border-radius: 5px; max-width: 1000px; margin: 0 auto; }
-        .header-text { font-size: 11px; line-height: 1.3; }
-        .title-box { text-align: center; border: 2px solid black; padding: 10px; margin: 20px 0; font-weight: bold; font-size: 18px; }
-        .info-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px; }
-        .info-table td { padding: 4px; border: 1px solid #ddd; }
-        .data-table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 20px; font-size: 12px; text-align: center; }
-        .data-table th, .data-table td { border: 1px solid black; padding: 6px; }
-        .data-table th { background-color: #f2f2f2; }
-        .totals-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 20px; }
-        .totals-table td { padding: 5px; border-bottom: 1px dotted #ccc; }
-        .totals-table .amount { text-align: right; font-weight: bold; }
-        .net-pay { font-size: 16px; font-weight: bold; background-color: #f0f0f0; border: 2px solid black; padding: 10px; text-align: center; margin-top: 20px;}
-        .arabic { direction: rtl; font-family: 'Arial', sans-serif; }
-    </style>
-        """, unsafe_allow_html=True)
-    
-        # IMPORTANT : Le code HTML ci-dessous ne doit comporter aucun espace d'indentation globale
-        # au début de chaque ligne pour éviter d'être reconnu comme du code source par Streamlit.
-        facture_html = f"""
-    <div class="facture-container">
-        <div style="display: flex; justify-content: space-between;">
-            <div class="header-text" style="width: 33%;">
-                <strong>الشركة الجزائرية للكهرباء والغاز التوزيع</strong><br>
-                Société algérienne de l'électricité et du gaz - Distribution<br>
-                Société par action au capital social de 64 000 000 000.00 DA<br>
-                Direction de distribution: SIDI BEL ABBES<br>
-                RCN: 22/74-0005455806<br>
-                NIS: 000609010536556<br>
-                NIF: 000609080545593<br>
-                RIB N°: 00100773030010182287<br>
-                RIP N°: 007999990000380629/09<br>
-                AI: 22645590011<br>
-                Agence commerciale: SIDI EL DJILLALI
-            </div>
-            <div style="width: 33%; text-align:center; border: 1px solid black; padding: 10px; border-radius: 5px; height: fit-content;">
-                <h2 style="margin:0; color:#1a5276;">3303</h2>
-                <p style="font-size:12px; margin:0;">
-                Assistance / إتصال<br>Dépannage / مساعدة<br>Réclamation / شكاوي<br>Pour Plus d'informations
-                </p>
-            </div>
-            <div class="header-text arabic" style="width: 33%; text-align:right;">
-                <strong>Facture de consommation<br>de l'Electricité et du Gaz</strong><br>
-                فاتورة استهلاك<br>الكهرباء والغاز
-            </div>
+<style>
+    .facture-container { font-family: 'Arial', sans-serif; background-color: white; color: black; padding: 40px; border: 1px solid #ccc; border-radius: 5px; max-width: 1000px; margin: 0 auto; }
+    .header-text { font-size: 11px; line-height: 1.3; }
+    .title-box { text-align: center; border: 2px solid black; padding: 10px; margin: 20px 0; font-weight: bold; font-size: 18px; }
+    .info-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px; }
+    .info-table td { padding: 4px; border: 1px solid #ddd; }
+    .data-table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 20px; font-size: 12px; text-align: center; }
+    .data-table th, .data-table td { border: 1px solid black; padding: 6px; }
+    .data-table th { background-color: #f2f2f2; }
+    .totals-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 20px; }
+    .totals-table td { padding: 5px; border-bottom: 1px dotted #ccc; }
+    .totals-table .amount { text-align: right; font-weight: bold; }
+    .net-pay { font-size: 16px; font-weight: bold; background-color: #f0f0f0; border: 2px solid black; padding: 10px; text-align: center; margin-top: 20px;}
+    .arabic { direction: rtl; font-family: 'Arial', sans-serif; }
+</style>
+    """, unsafe_allow_html=True)
+
+    facture_html = f"""
+<div class="facture-container">
+    <div style="display: flex; justify-content: space-between;">
+        <div class="header-text" style="width: 33%;">
+            <strong>الشركة الجزائرية للكهرباء والغاز التوزيع</strong><br>
+            Société algérienne de l'électricité et du gaz - Distribution<br>
+            Société par action au capital social de 64 000 000 000.00 DA<br>
+            Direction de distribution: SIDI BEL ABBES<br>
+            RCN: 22/74-0005455806<br>
+            NIS: 000609010536556<br>
+            NIF: 000609080545593<br>
+            RIB N°: 00100773030010182287<br>
+            RIP N°: 007999990000380629/09<br>
+            AI: 22645590011<br>
+            Agence commerciale: SIDI EL DJILLALI
         </div>
-    
-        <div class="title-box">Facture n° 733260603359 | فاتورة رقم </div>
-    
-        <table class="info-table">
-            <tr>
-                <td><strong>Etablie le :</strong> {date_jour}</td>
-                <td><strong>Client n° :</strong> 7314P001114</td>
-            </tr>
-            <tr>
-                <td><strong>Référence/PDL :</strong> {selected_ref}</td>
-                <td><strong>{client_nom}</strong></td>
-            </tr>
-            <tr>
-                <td><strong>Lieu de consommation :</strong> SIDI BEL ABBES</td>
-                <td><strong>NIF :</strong></td>
-            </tr>
-            <tr>
-                <td><strong>Prochaine relève vers le :</strong> {date_prochaine}</td>
-                <td><strong>RC N° :</strong></td>
-            </tr>
-        </table>
-    
-        <h4>Vos consommations / إستهلاكاتكم (Période du: Trimestre en cours)</h4>
-        <table class="data-table">
-            <tr>
-                <th></th>
-                <th>Consommation / الاستهلاك</th>
-                <th>Montant en DA HT / المبلغ بالدينار</th>
-            </tr>
-            <tr>
-                <td><strong>Electricité / الكهرباء</strong></td>
-                <td>{consommation_elec_kwh:.2f} kWh</td>
-                <td>{total_ht_elec:.2f}</td>
-            </tr>
-            <tr>
-                <td><strong>Gaz / الغاز</strong></td>
-                <td>{consommation_gaz_th:.2f} Th</td>
-                <td>{total_ht_gaz:.2f}</td>
-            </tr>
-        </table>
-    
-        <h4>Vos contrats / عقودكم</h4>
-        <h5>Electricité</h5>
-        <table class="data-table">
-            <tr>
-                <th>N° Compteur</th><th>Tarif</th><th>PMD</th><th>Coef</th>
-                <th>A. index (البيان السابق)</th><th>N. Index (البيان الجديد)</th>
-            </tr>
-            <tr>
-                <td>070117</td><td>54M</td><td>6kW</td><td>1.0</td>
-                <td>{A_INDEX_ELEC:.0f} R</td><td>{index_elec:.0f} R</td>
-            </tr>
-        </table>
-        <table class="data-table">
-            <tr>
-                <th>Quantité / الكمية</th>
-                <th>Tranche 1 ({e_t1:.2f})</th>
-                <th>Tranche 2 ({e_t2:.2f})</th>
-                <th>Tranche 3 ({e_t3:.2f})</th>
-                <th>Tranche 4 ({e_t4:.2f})</th>
-            </tr>
-            <tr>
-                <td><strong>Prix unitaire / ثمن الوحدة</strong></td>
-                <td>1,7787</td><td>4,1789</td><td>4,8120</td><td>5,4796</td>
-            </tr>
-            <tr>
-                <td><strong>Montant HT (9%)</strong></td>
-                <td colspan="2">{(m_e_t1 + m_e_t2):.2f}</td><td>-</td><td>-</td>
-            </tr>
-            <tr>
-                <td><strong>Montant HT (19%)</strong></td>
-                <td>-</td><td>-</td><td colspan="2">{(m_e_t3 + m_e_t4):.2f}</td>
-            </tr>
-        </table>
-    
-        <h5>Gaz</h5>
-        <table class="data-table">
-            <tr>
-                <th>N° Compteur</th><th>Tarif</th><th>DMD</th><th>PCS</th>
-                <th>A. Index (البيان السابق)</th><th>N. index (البيان الجديد)</th>
-            </tr>
-            <tr>
-                <td>126106</td><td>23M</td><td>5m³h</td><td>{PCS_GAZ}</td>
-                <td>{A_INDEX_GAZ:.0f} R</td><td>{index_gaz:.0f} R</td>
-            </tr>
-        </table>
-        <table class="data-table">
-            <tr>
-                <th>Quantité / الكمية</th>
-                <th>Tranche 1 ({g_t1:.2f})</th>
-                <th>Tranche 2 ({g_t2:.2f})</th>
-                <th>Tranche 3 ({g_t3:.2f})</th>
-                <th>Tranche 4 ({g_t4:.2f})</th>
-            </tr>
-            <tr>
-                <td><strong>Prix unitaire / ثمن الوحدة</strong></td>
-                <td>0,1682</td><td>0,3245</td><td>0,4025</td><td>0,4599</td>
-            </tr>
-            <tr>
-                <td><strong>Montant HT (9%)</strong></td>
-                <td colspan="2">{(m_g_t1 + m_g_t2):.2f}</td><td>-</td><td>-</td>
-            </tr>
-            <tr>
-                <td><strong>Montant HT (19%)</strong></td>
-                <td>-</td><td>-</td><td colspan="2">{(m_g_t3 + m_g_t4):.2f}</td>
-            </tr>
-        </table>
-    
-        <table class="totals-table">
-            <tr><td>Redevances fixes HT (Abonnement) (DA) / الإتاوات الثابتة</td><td class="amount">{abonnement:.2f}</td></tr>
-            <tr><td>Frais & Prestation HT (DA) / رسوم وخدمات</td><td class="amount">0.00</td></tr>
-            <tr><td><strong>Montant HT (DA) / المبلغ دون رسوم</strong></td><td class="amount"><strong>{total_ht:.2f}</strong></td></tr>
-            <tr><td>TVA à 9% (DA) / ر.ق.م 9%</td><td class="amount">{tva_9:.2f}</td></tr>
-            <tr><td>TVA à 19% (DA) / ر.ق.م 19%</td><td class="amount">{tva_19:.2f}</td></tr>
-            <tr><td><strong>Total TVA (DA) / مجموع ر.ق.م</strong></td><td class="amount"><strong>{total_tva:.2f}</strong></td></tr>
-            <tr><td>Droit Fixe sur consommation (DA) / المستحقات الثابتة على الاستهلاك</td><td class="amount">{droit_fixe:.2f}</td></tr>
-            <tr><td>Taxe d'habitation (DA) / رسم على المسكن</td><td class="amount">{taxe_hab:.2f}</td></tr>
-        </table>
-    
-        <div class="net-pay">
-            Net à payer TTC (DA) / الصافي للدفع متضمن جميع الرسوم (دج)<br>
-            <span style="font-size:24px;">{net_ttc:.2f}</span>
+        <div style="width: 33%; text-align:center; border: 1px solid black; padding: 10px; border-radius: 5px; height: fit-content;">
+            <h2 style="margin:0; color:#1a5276;">3303</h2>
+            <p style="font-size:12px; margin:0;">
+            Assistance / إتصال<br>Dépannage / مساعدة<br>Réclamation / شكاوي<br>Pour Plus d'informations
+            </p>
         </div>
-    
-        <table class="totals-table" style="width:50%; margin: 20px auto;">
-            <tr><td>Timbre (paiement en espèce) (DA) / الطابع</td><td class="amount">{timbre:.2f}</td></tr>
-            <tr><td><strong>Total à payer (en espèces) (DA) / المستحق الإجمالي</strong></td><td class="amount" style="font-size:18px;"><strong>{total_payer:.2f}</strong></td></tr>
-        </table>
-    
-        <div style="margin-top: 30px; border-top: 2px solid black; padding-top: 10px;">
-            <div style="float:left; width: 45%;">
-                <strong>Sauf erreur ou omission / عدا خطأ أو نسيان</strong><br>
-                <span style="color:red; font-size:16px;"><strong>Date limite du paiement : {date_limite}</strong></span><br>
-                Passé ce délai, nous nous réserverons le droit de procéder à la suspension de la fourniture d'énergie.
-            </div>
-            <div style="float:right; width: 45%; border: 1px solid #ccc; padding: 10px; border-radius: 5px;">
-                <strong>Espace information / معلومات</strong><br>
-                Montant de votre consommation moyenne par jour : <strong>{(total_payer/90):.2f} DA/Jour</strong><br>
-            </div>
-            <div style="clear:both;"></div>
+        <div class="header-text arabic" style="width: 33%; text-align:right;">
+            <strong>Facture de consommation<br>de l'Electricité et du Gaz</strong><br>
+            فاتورة استهلاك<br>الكهرباء والغاز
         </div>
     </div>
-    """
-        
-        st.markdown(facture_html, unsafe_allow_html=True)
+
+    <div class="title-box">Facture n° 733260603359 | فاتورة رقم </div>
+
+    <table class="info-table">
+        <tr>
+            <td><strong>Etablie le :</strong> {date_jour}</td>
+            <td><strong>Client n° :</strong> 7314P001114</td>
+        </tr>
+        <tr>
+            <td><strong>Référence/PDL :</strong> {selected_ref}</td>
+            <td><strong>{client_nom}</strong></td>
+        </tr>
+        <tr>
+            <td><strong>Lieu de consommation :</strong> SIDI BEL ABBES</td>
+            <td><strong>NIF :</strong></td>
+        </tr>
+        <tr>
+            <td><strong>Prochaine relève vers le :</strong> {date_prochaine}</td>
+            <td><strong>RC N° :</strong></td>
+        </tr>
+    </table>
+
+    <h4>Vos consommations / إستهلاكاتكم (Période du: Trimestre en cours)</h4>
+    <table class="data-table">
+        <tr>
+            <th></th>
+            <th>Consommation / الاستهلاك</th>
+            <th>Montant en DA HT / المبلغ بالدينار</th>
+        </tr>
+        <tr>
+            <td><strong>Electricité / الكهرباء</strong></td>
+            <td>{consommation_elec_kwh:.2f} kWh</td>
+            <td>{total_ht_elec:.2f}</td>
+        </tr>
+        <tr>
+            <td><strong>Gaz / الغاز</strong></td>
+            <td>{consommation_gaz_th:.2f} Th</td>
+            <td>{total_ht_gaz:.2f}</td>
+        </tr>
+    </table>
+
+    <h4>Vos contrats / عقودكم</h4>
+    <h5>Electricité</h5>
+    <table class="data-table">
+        <tr>
+            <th>N° Compteur</th><th>Tarif</th><th>PMD</th><th>Coef</th>
+            <th>A. index (البيان السابق)</th><th>N. Index (البيان الجديد)</th>
+        </tr>
+        <tr>
+            <td>070117</td><td>54M</td><td>6kW</td><td>1.0</td>
+            <td>{A_INDEX_ELEC:.0f} R</td><td>{index_elec:.0f} R</td>
+        </tr>
+    </table>
+    <table class="data-table">
+        <tr>
+            <th>Quantité / الكمية</th>
+            <th>Tranche 1 ({e_t1:.2f})</th>
+            <th>Tranche 2 ({e_t2:.2f})</th>
+            <th>Tranche 3 ({e_t3:.2f})</th>
+            <th>Tranche 4 ({e_t4:.2f})</th>
+        </tr>
+        <tr>
+            <td><strong>Prix unitaire / ثمن الوحدة</strong></td>
+            <td>1,7787</td><td>4,1789</td><td>4,8120</td><td>5,4796</td>
+        </tr>
+        <tr>
+            <td><strong>Montant HT (9%)</strong></td>
+            <td colspan="2">{(m_e_t1 + m_e_t2):.2f}</td><td>-</td><td>-</td>
+        </tr>
+        <tr>
+            <td><strong>Montant HT (19%)</strong></td>
+            <td>-</td><td>-</td><td colspan="2">{(m_e_t3 + m_e_t4):.2f}</td>
+        </tr>
+    </table>
+
+    <h5>Gaz</h5>
+    <table class="data-table">
+        <tr>
+            <th>N° Compteur</th><th>Tarif</th><th>DMD</th><th>PCS</th>
+            <th>A. Index (البيان السابق)</th><th>N. index (البيان الجديد)</th>
+        </tr>
+        <tr>
+            <td>126106</td><td>23M</td><td>5m³h</td><td>{PCS_GAZ}</td>
+            <td>{A_INDEX_GAZ:.0f} R</td><td>{index_gaz:.0f} R</td>
+        </tr>
+    </table>
+    <table class="data-table">
+        <tr>
+            <th>Quantité / الكمية</th>
+            <th>Tranche 1 ({g_t1:.2f})</th>
+            <th>Tranche 2 ({g_t2:.2f})</th>
+            <th>Tranche 3 ({g_t3:.2f})</th>
+            <th>Tranche 4 ({g_t4:.2f})</th>
+        </tr>
+        <tr>
+            <td><strong>Prix unitaire / ثمن الوحدة</strong></td>
+            <td>0,1682</td><td>0,3245</td><td>0,4025</td><td>0,4599</td>
+        </tr>
+        <tr>
+            <td><strong>Montant HT (9%)</strong></td>
+            <td colspan="2">{(m_g_t1 + m_g_t2):.2f}</td><td>-</td><td>-</td>
+        </tr>
+        <tr>
+            <td><strong>Montant HT (19%)</strong></td>
+            <td>-</td><td>-</td><td colspan="2">{(m_g_t3 + m_g_t4):.2f}</td>
+        </tr>
+    </table>
+
+    <table class="totals-table">
+        <tr><td>Redevances fixes HT (Abonnement) (DA) / الإتاوات الثابتة</td><td class="amount">{abonnement:.2f}</td></tr>
+        <tr><td>Frais & Prestation HT (DA) / رسوم وخدمات</td><td class="amount">0.00</td></tr>
+        <tr><td><strong>Montant HT (DA) / المبلغ دون رسوم</strong></td><td class="amount"><strong>{total_ht:.2f}</strong></td></tr>
+        <tr><td>TVA à 9% (DA) / ر.ق.م 9%</td><td class="amount">{tva_9:.2f}</td></tr>
+        <tr><td>TVA à 19% (DA) / ر.ق.م 19%</td><td class="amount">{tva_19:.2f}</td></tr>
+        <tr><td><strong>Total TVA (DA) / مجموع ر.ق.م</strong></td><td class="amount"><strong>{total_tva:.2f}</strong></td></tr>
+        <tr><td>Droit Fixe sur consommation (DA) / المستحقات الثابتة على الاستهلاك</td><td class="amount">{droit_fixe:.2f}</td></tr>
+        <tr><td>Taxe d'habitation (DA) / رسم على المسكن</td><td class="amount">{taxe_hab:.2f}</td></tr>
+    </table>
+
+    <div class="net-pay">
+        Net à payer TTC (DA) / الصافي للدفع متضمن جميع الرسوم (دج)<br>
+        <span style="font-size:24px;">{net_ttc:.2f}</span>
+    </div>
+
+    <table class="totals-table" style="width:50%; margin: 20px auto;">
+        <tr><td>Timbre (paiement en espèce) (DA) / الطابع</td><td class="amount">{timbre:.2f}</td></tr>
+        <tr><td><strong>Total à payer (en espèces) (DA) / المستحق الإجمالي</strong></td><td class="amount" style="font-size:18px;"><strong>{total_payer:.2f}</strong></td></tr>
+    </table>
+
+    <div style="margin-top: 30px; border-top: 2px solid black; padding-top: 10px;">
+        <div style="float:left; width: 45%;">
+            <strong>Sauf erreur ou omission / عدا خطأ أو نسيان</strong><br>
+            <span style="color:red; font-size:16px;"><strong>Date limite du paiement : {date_limite}</strong></span><br>
+            Passé ce délai, nous nous réserverons le droit de procéder à la suspension de la fourniture d'énergie.
+        </div>
+        <div style="float:right; width: 45%; border: 1px solid #ccc; padding: 10px; border-radius: 5px;">
+            <strong>Espace information / معلومات</strong><br>
+            Montant de votre consommation moyenne par jour : <strong>{(total_payer/90):.2f} DA/Jour</strong><br>
+        </div>
+        <div style="clear:both;"></div>
+    </div>
+</div>
+"""
     
-    st.divider()
-    
-    if st.button("Actualiser les données des compteurs"):
-        st.rerun()
+    st.markdown(facture_html, unsafe_allow_html=True)
+
+st.divider()
+
+if st.button("Actualiser les données des compteurs"):
+    st.rerun()
