@@ -84,21 +84,26 @@ class TableauDeBord:
 # ==========================================
 # 3. Simulation de flux IoT (Générateur de données)
 # ==========================================
-
 def simuler_flux_iot(bd):
     """Simule des compteurs qui envoient de nouvelles données chaque seconde."""
     abonnes = bd.obtenir_tous_les_abonnes()
     for abonne in abonnes:
         ref = abonne[0]
-        # On ajoute une petite quantité aléatoire pour simuler une consommation en direct
+        
+        # 1. On tente de récupérer la mesure actuelle
+        mesure = bd.obtenir_mesure_actuelle(ref)
+        
+        # 2. Si la mesure n'existe pas (None), on utilise les valeurs de référence de l'abonné
+        if mesure is None:
+            actuel_elec, actuel_gaz = abonne[2], abonne[3]
+        else:
+            actuel_elec, actuel_gaz = mesure
+            
+        # 3. Calcul de l'incrémentation
         variation_elec = random.uniform(0.01, 0.5)
         variation_gaz = random.uniform(0.01, 0.5)
         
-        # Récupérer l'index actuel, puis incrémenter
-        actuel_elec, actuel_gaz = bd.obtenir_mesure_actuelle(ref)
-        if actuel_elec is None:
-            actuel_elec, actuel_gaz = abonne[2], abonne[3]
-            
+        # 4. Insertion de la nouvelle mesure
         bd.cursor.execute('''
             INSERT OR REPLACE INTO mesures_instantanees (reference_contrat, index_actuel_elec, index_actuel_gaz, horodatage)
             VALUES (?, ?, ?, ?)
