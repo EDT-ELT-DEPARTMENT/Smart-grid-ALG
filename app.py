@@ -72,7 +72,11 @@ def page_facturation(client_id, info):
     sous_total_ht = sum([i['mt'] for i in data_elec])
     net_ttc = sous_total_ht + redevance + tva_9 + tva_19 + droit + taxe
 
+    # Ajout du header meta charset dans le HTML pour corriger l'affichage des accents
     facture_html = f"""
+    <html>
+    <head><meta http-equiv="Content-Type" content="text/html; charset=utf-8" /></head>
+    <body>
     <div style="border: 2px solid #2980b9; padding: 20px; font-family: Arial, sans-serif;">
     <h2 style="color: #2980b9; text-align: center;">SONELGAZ - Détail de Facturation</h2>
     <p><strong>Facture n°:</strong> {info['facture']} | <strong>Client n°:</strong> {client_id}</p>
@@ -87,15 +91,20 @@ def page_facturation(client_id, info):
     <h2 style="color: #2980b9; text-align: right;">Net à payer : {net_ttc:.2f} DA</h2>
     </div>
     </div>
+    </body>
+    </html>
     """
     st.markdown(facture_html, unsafe_allow_html=True)
 
     col1, col2 = st.columns(2)
     col1.download_button("Télécharger HTML", facture_html, "facture.html", "text/html")
+    
+    # Fonction PDF corrigée avec encoding='utf-8'
     def generate_pdf(html):
         result = io.BytesIO()
-        pisa.CreatePDF(io.BytesIO(html.encode("UTF-8")), dest=result)
+        pisa.CreatePDF(io.BytesIO(html.encode("utf-8")), dest=result, encoding='utf-8')
         return result.getvalue()
+        
     col2.download_button("Télécharger PDF", generate_pdf(facture_html), "facture.pdf", "application/pdf")
 
 # --- PAGE 2 : SUPERVISION ---
@@ -133,12 +142,10 @@ def page_supervision(client_id, info):
             st.metric("Débit Instantané", f"{gaz_data['valeur_actuelle']:.2f} m³/h")
             st.line_chart(df[df['type_energie'] == 'Gaz'].set_index('timestamp')['valeur_actuelle'])
 
-        # --- SECTION TRANCHES RESTAURÉE ---
         st.divider()
         st.subheader("État des Tranches de Consommation")
         col_t1, col_t2, col_t3 = st.columns(3)
         
-        # Logique des barres de progression
         conso_totale = elec_data['total_jour']
         t1_prog = min((conso_totale / 125.0) * 100, 100)
         col_t1.progress(t1_prog / 100, text=f"Tranche 1 (125 kWh) : {t1_prog:.1f}%")
