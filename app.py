@@ -3,27 +3,27 @@ import io
 from xhtml2pdf import pisa
 
 # --- CONFIGURATION DE LA PAGE ---
-# Définit la mise en page en mode large pour un meilleur affichage des tableaux
+# Utilisation de layout="wide" pour permettre au tableau de s'étendre sur toute la largeur
 st.set_page_config(
     page_title="Plateforme de gestion des EDTs-S2-2026", 
     layout="wide"
 )
 
-# --- EN-TÊTE DE L'APPLICATION ---
+# --- TITRES ---
+# Rappel du titre de l'application selon vos consignes
 st.title("Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA")
 st.subheader("Plateforme de Facturation SONELGAZ - Direction de Distribution SIDI BEL ABBES")
 
 # --- DONNÉES DE FACTURATION ---
-# Structure des données pour faciliter la mise à jour
 facture_num = "733260603359"
 client_num = "7314P001114"
 nom_abonne = "MME BELASKRI ASMA"
 lieu_consommation = "01 BLOC B CT 70 LOGTS UDL"
 
 # --- CONSTRUCTION DU CONTENU HTML ---
-# Le style est défini avec des variables pour garantir la clarté et la répétition cohérente
+# Structure HTML robuste avec styles en ligne pour un rendu fixe
 html_content = f"""
-<div style="font-family: Arial, sans-serif; padding: 25px; border: 2px solid #2980b9; background-color: #ffffff;">
+<div style="font-family: Arial, sans-serif; padding: 25px; border: 2px solid #2980b9; background-color: #ffffff; width: 100%; max-width: 1200px; margin: auto;">
     
     <h2 style="color: #2980b9; text-align: center;">SONELGAZ - Détail de Facturation Smart</h2>
     
@@ -33,7 +33,7 @@ html_content = f"""
     </div>
 
     <h3 style="color: #2980b9;">Électricité</h3>
-    <table style="width:100%; border-collapse: collapse; margin-bottom: 20px;">
+    <table style="width:100%; border-collapse: collapse; margin-bottom: 20px; table-layout: fixed;">
         <tr>
             <th style="border: 1px solid #2980b9; padding: 12px; background-color: #d6eaf8; color: #2980b9;">Tranche</th>
             <th style="border: 1px solid #2980b9; padding: 12px; background-color: #d6eaf8; color: #2980b9;">Quantité (kWh)</th>
@@ -61,7 +61,7 @@ html_content = f"""
     </table>
 
     <h3 style="color: #2980b9;">Gaz</h3>
-    <table style="width:100%; border-collapse: collapse; margin-bottom: 20px;">
+    <table style="width:100%; border-collapse: collapse; margin-bottom: 20px; table-layout: fixed;">
         <tr>
             <th style="border: 1px solid #2980b9; padding: 12px; background-color: #d6eaf8; color: #2980b9;">Tranche</th>
             <th style="border: 1px solid #2980b9; padding: 12px; background-color: #d6eaf8; color: #2980b9;">Quantité (Th)</th>
@@ -106,7 +106,7 @@ def convertir_en_pdf(html_string):
     return resultat.getvalue()
 
 # --- ESPACE DE TÉLÉCHARGEMENT ---
-st.divider()
+st.markdown("---")
 st.write("### Options d'exportation")
 
 col1, col2 = st.columns(2)
