@@ -179,103 +179,93 @@ def page_facturation(client_id, info):
 
 # --- PAGE 2 : SUPERVISION ---
 def page_supervision(client_id, info):
-    st.title("Smart-Grid SONELGAZ : Supervision Temps Réel")
-    st.subheader(f"Supervision Temps Réel : {info['nom']} (Client: {client_id})")
+    # Rappel du titre institutionnel requis
+    st.title("Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA")
+    st.subheader(f"Supervision par Impulsions : {info['nom']} (Client: {client_id})")
 
-    if 'tension' not in st.session_state: st.session_state.tension = 230.0
-    if 'courant' not in st.session_state: st.session_state.courant = 0.0
-    if 'cos_phi' not in st.session_state: st.session_state.cos_phi = 0.95
-    if 'puissance_kw' not in st.session_state: st.session_state.puissance_kw = 0.0
+    # Initialisation des compteurs en session
+    if 'imp_elec' not in st.session_state: st.session_state.imp_elec = 0
+    if 'imp_gaz' not in st.session_state: st.session_state.imp_gaz = 0
 
     if mode_acquisition == "Mode Simulation":
-        st.info("🔧 **Mode Simulation** : Génération de valeurs aléatoires pour simuler la consommation et le réseau.")
-        if st.button("Rafraîchir les données (Simulation)"):
-            st.session_state.tension = random.uniform(220.0, 240.0)
-            st.session_state.courant = random.uniform(1.0, 15.0)
-            st.session_state.cos_phi = random.uniform(0.85, 1.0)
-            st.session_state.puissance_kw = (st.session_state.tension * st.session_state.courant * st.session_state.cos_phi) / 1000
-
-            # Calcul des nouvelles valeurs basées sur les anciennes pour assurer une progression
+        st.info("🔧 **Mode Simulation** : Génération d'impulsions aléatoires pour simuler le comptage.")
+        if st.button("Simuler réception impulsions"):
+            # Simulation d'une réception d'impulsions (ex: ajout de 1 à 5 impulsions)
+            gain_elec = random.randint(1, 5)
+            gain_gaz = random.randint(1, 3)
+            
             last_elec = get_live_data(client_id, "Elec")
             last_gaz = get_live_data(client_id, "Gaz")
             
             conn = sqlite3.connect('monitoring_energie.db', check_same_thread=False)
             c = conn.cursor()
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Elec", random.uniform(1.0, 4.0), last_elec + random.uniform(0.5, 2.5), client_id))
-            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", random.uniform(0.5, 1.5), last_gaz + random.uniform(0.1, 1.0), client_id))
+            # Ajout des impulsions à la base (1 impulsion = 0.001 unité pour l'exemple)
+            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Elec", gain_elec, last_elec + (gain_elec * 0.001), client_id))
+            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", gain_gaz, last_gaz + (gain_gaz * 0.001), client_id))
             conn.commit()
             conn.close()
             st.rerun()
             
     elif mode_acquisition == "Mode Réel (Carte TTGO)":
-        st.success("📡 **Mode Réel (IoT)** : Communication avec la carte ESP32 TTGO sur le réseau local.")
-        ip_ttgo = st.text_input("Adresse IP de la carte TTGO (ex: 192.168.1.50) :", "192.168.1.50")
-        if st.button("Acquérir les index depuis la TTGO"):
+        st.success("📡 **Mode Réel (IoT)** : Réception d'impulsions depuis la carte TTGO.")
+        ip_ttgo = st.text_input("Adresse IP de la carte TTGO :", "192.168.1.50")
+        if st.button("Acquérir les compteurs d'impulsions"):
             try:
-                response = requests.get(f"http://{ip_ttgo}/mesures", timeout=5)
+                # On s'attend à recevoir un JSON type: {"imp_elec": 120, "imp_gaz": 45}
+                response = requests.get(f"http://{ip_ttgo}/impulsions", timeout=5)
                 if response.status_code == 200:
                     data = response.json()
-                    st.session_state.tension = float(data.get('v', 230.0))
-                    st.session_state.courant = float(data.get('i', 0.0))
-                    st.session_state.cos_phi = float(data.get('pf', 0.95))
-                    st.session_state.puissance_kw = float(data.get('kw', 0.0))
-
-                    elec_reel = float(data.get('elec', get_live_data(client_id, "Elec")))
-                    gaz_reel = float(data.get('gaz', get_live_data(client_id, "Gaz")))
+                    imp_elec = int(data.get('imp_elec', 0))
+                    imp_gaz = int(data.get('imp_gaz', 0))
 
                     conn = sqlite3.connect('monitoring_energie.db', check_same_thread=False)
                     c = conn.cursor()
                     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Elec", 0.0, elec_reel, client_id))
-                    c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", 0.0, gaz_reel, client_id))
+                    # Conversion des impulsions en valeurs cumulées
+                    c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Elec", imp_elec, imp_elec * 0.001, client_id))
+                    c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", imp_gaz, imp_gaz * 0.001, client_id))
                     conn.commit()
                     conn.close()
-                    st.toast("✅ Données acquises avec succès !")
+                    st.toast("✅ Impulsions synchronisées !")
                     st.rerun()
                 else:
-                    st.error(f"⚠️ Erreur HTTP: {response.status_code}")
+                    st.error(f"⚠️ Erreur réseau : {response.status_code}")
             except Exception as e:
                 st.error(f"❌ Erreur connexion : {e}")
 
-    # Dashboard
-    st.markdown("### 📊 État du Réseau Électrique (Smart-Grid)")
-    cols = st.columns(4)
-    cols[0].metric("⚡ Tension", f"{st.session_state.tension:.1f} V")
-    cols[1].metric("🔌 Courant", f"{st.session_state.courant:.2f} A")
-    cols[2].metric("📐 Cos $\phi$", f"{st.session_state.cos_phi:.2f}")
-    cols[3].metric("📈 Puissance", f"{st.session_state.puissance_kw:.2f} kW")
+    # Dashboard des Impulsions
+    st.markdown("### 📊 État du Comptage (Impulsions)")
+    
+    # Récupération des dernières valeurs
+    elec_total = get_live_data(client_id, "Elec")
+    gaz_total = get_live_data(client_id, "Gaz")
+    
+    cols = st.columns(2)
+    # Conversion inverse : on affiche le nombre d'impulsions (valeur_cumulée / 0.001)
+    cols[0].metric("⚡ Total Impulsions Élec", f"{int(elec_total / 0.001)} pulses")
+    cols[1].metric("🔥 Total Impulsions Gaz", f"{int(gaz_total / 0.001)} pulses")
     st.divider()
 
-    # Consommation actuelle
-    elec_val = get_live_data(client_id, "Elec")
-    gaz_val = get_live_data(client_id, "Gaz")
-    data_elec, data_gaz, _, _, _, _, _, _, _ = calculer_facture(elec_val, gaz_val)
+    # Consommation détaillée
+    data_elec, data_gaz, _, _, _, _, _, _, _ = calculer_facture(elec_total, gaz_total)
 
-    st.markdown("### ⚡ Consommation Électricité")
+    st.markdown("### ⚡ Analyse Électricité")
     cols_e = st.columns(3)
     for i, tranche in enumerate(data_elec):
-        limit = 125 if i==0 else 125 if i==1 else 1000
-        cols_e[i].metric(tranche['tranche'], f"{tranche['qte']:.2f} kWh")
-        cols_e[i].progress(min(tranche['qte'] / limit, 1.0))
+        cols_e[i].metric(tranche['tranche'], f"{tranche['qte']:.3f} kWh")
 
-    st.markdown("### 🔥 Consommation Gaz")
+    st.markdown("### 🔥 Analyse Gaz")
     cols_g = st.columns(3)
     for i, tranche in enumerate(data_gaz):
-        limit = 1125 if i==0 else 1375 if i==1 else 1000
-        cols_g[i].metric(tranche['tranche'], f"{tranche['qte']:.2f} Th")
-        cols_g[i].progress(min(tranche['qte'] / limit, 1.0))
+        cols_g[i].metric(tranche['tranche'], f"{tranche['qte']:.3f} Th")
 
     st.divider()
     
-    # Graphique
+    # Graphique d'évolution des impulsions
     conn = sqlite3.connect('monitoring_energie.db', check_same_thread=False)
     df = pd.read_sql_query("SELECT * FROM mesures WHERE client_id=? ORDER BY timestamp DESC LIMIT 20", conn, params=(client_id,))
     conn.close()
     if not df.empty:
+        st.write("Évolution de la consommation (Unités cumulées)")
         st.line_chart(df[df['type_energie'] == 'Elec'].set_index('timestamp')['total_jour'])
-
-if page == "Facturation":
-    page_facturation(selected_id, client_info)
-else:
-    page_supervision(selected_id, client_info)
