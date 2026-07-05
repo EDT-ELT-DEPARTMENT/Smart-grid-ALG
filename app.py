@@ -101,7 +101,7 @@ def get_live_data(client_id, type_energie):
 
 # --- NAVIGATION SIDEBAR ---
 st.sidebar.title("Navigation")
-st.sidebar.markdown("**Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA**")
+st.sidebar.markdown("****")
 
 selected_id = st.sidebar.selectbox("Choisir un abonné :", list(CLIENTS.keys()))
 client_info = CLIENTS[selected_id]
