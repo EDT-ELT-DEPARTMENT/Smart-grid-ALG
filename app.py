@@ -2,8 +2,9 @@ import streamlit as st
 import io
 from xhtml2pdf import pisa
 
-# --- CONFIGURATION ---
-st.set_page_config(page_title="SONELGAZ - Facturation Smart", layout="wide")
+# --- CONFIGURATION DE LA PAGE ---
+st.set_page_config(page_title="Plateforme de gestion des EDTs-S2-2026", layout="wide")
+
 st.title("Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA")
 st.subheader("Plateforme de Facturation SONELGAZ - Direction de Distribution SIDI BEL ABBES")
 
@@ -31,12 +32,12 @@ data = {
     "net_ttc": "3969.68"
 }
 
-# --- STYLES ---
+# --- DÉFINITION DES STYLES CSS ---
 table_style = "width:100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 20px;"
 th_style = "border: 1px solid #2980b9; padding: 12px; background-color: #d6eaf8; text-align: center; color: #2980b9;"
 td_style = "border: 1px solid #2980b9; padding: 10px; text-align: center;"
 
-# --- CONSTRUCTION HTML ---
+# --- CONSTRUCTION DU CONTENU HTML ---
 facture_html = f"""
 <div style="border: 2px solid #2980b9; padding: 25px; font-family: Arial, sans-serif; background-color: #ffffff;">
     <h2 style="color: #2980b9; text-align: center;">SONELGAZ - Détail de Facturation Smart</h2>
@@ -75,17 +76,30 @@ facture_html = f"""
 </div>
 """
 
-# --- AFFICHAGE ET ACTIONS ---
+# --- RENDU ET TÉLÉCHARGEMENT ---
 st.markdown(facture_html, unsafe_allow_html=True)
 
 st.markdown("---")
 col1, col2 = st.columns(2)
 
-col1.download_button("Télécharger HTML", facture_html, "facture_smart.html", "text/html")
+# Bouton de téléchargement HTML
+col1.download_button(
+    label="Télécharger HTML", 
+    data=facture_html, 
+    file_name="facture_smart.html", 
+    mime="text/html"
+)
 
+# Fonction de génération PDF
 def generate_pdf(html_content):
     result = io.BytesIO()
-    pisa.CreatePDF(html_content, dest=result)
+    pisa_status = pisa.CreatePDF(html_content, dest=result)
     return result.getvalue()
 
-col2.download_button("Télécharger PDF", generate_pdf(facture_html), "facture_smart.pdf", "application/pdf")
+# Bouton de téléchargement PDF
+col2.download_button(
+    label="Télécharger PDF", 
+    data=generate_pdf(facture_html), 
+    file_name="facture_smart.pdf", 
+    mime="application/pdf"
+)
