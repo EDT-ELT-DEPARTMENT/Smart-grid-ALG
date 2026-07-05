@@ -227,23 +227,7 @@ def page_supervision(client_id, info):
             
             st.toast(f"✅ Simulation effectuée : +{kwh_ajoute} kWh ajoutés.")
             st.rerun()
-    if mode_acquisition == "Mode Simulation":
-        st.info("🔧 **Mode Simulation** : Génération de valeurs aléatoires pour simuler la consommation et le réseau.")
-        
-        if st.button("Rafraîchir les données (Simulation)"):
-            st.session_state.tension = random.uniform(220.0, 240.0)
-            st.session_state.courant = random.uniform(1.0, 15.0)
-            st.session_state.cos_phi = random.uniform(0.85, 1.0)
-            st.session_state.puissance_kw = (st.session_state.tension * st.session_state.courant * st.session_state.cos_phi) / 1000
-
-            conn = sqlite3.connect('monitoring_energie.db')
-            c = conn.cursor()
-            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Elec", random.uniform(1.0, 4.0), get_live_data(client_id, "Elec") + random.uniform(0.5, 2.5), client_id))
-            c.execute("INSERT INTO mesures VALUES (?, ?, ?, ?, ?)", (now, "Gaz", random.uniform(0.5, 1.5), get_live_data(client_id, "Gaz") + random.uniform(0.1, 1.0), client_id))
-            conn.commit()
-            conn.close()
-            st.rerun()
+    
             
     elif mode_acquisition == "Mode Réel (Carte TTGO)":
         st.success("📡 **Mode Réel (IoT)** : Communication avec la carte ESP32 TTGO sur le réseau local.")
