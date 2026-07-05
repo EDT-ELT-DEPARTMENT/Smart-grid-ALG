@@ -5,9 +5,9 @@ import time
 from datetime import datetime
 
 # Configuration
-st.set_page_config(page_title="Plateforme de gestion des EDTs", layout="wide")
+st.set_page_config(page_title="", layout="wide")
 
-st.title("Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA")
+st.title("")
 
 def get_db():
     conn = sqlite3.connect("sonelgaz_gestion.db", check_same_thread=False)
