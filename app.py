@@ -11,7 +11,44 @@ import io
 import requests
 from datetime import datetime
 import streamlit.components.v1 as components
+import smtplib
+from email.mime.text import MIMEText
+import time
+import random
 
+def envoyer_alerte_email(email_destinataire, montant_actuel, seuil, nom_client):
+    """Envoie un e-mail d'alerte lorsque le seuil de consommation est dépassé."""
+    # À configurer avec vos identifiants
+    expediteur = "votre.email.projet@gmail.com"
+    mot_de_passe = "votre_mot_de_passe_application" 
+    
+    sujet = "SONELGAZ - Alerte de dépassement de consommation"
+    corps = f"""Bonjour {nom_client},
+    
+Ceci est une alerte automatique de votre système Smart-Grid.
+Votre facture estimée actuelle s'élève à {montant_actuel:,.2f} DA.
+Elle vient de dépasser le seuil d'alerte que vous avez fixé à {seuil:,.2f} DA.
+
+Cordialement,
+Le système de télésurveillance.
+"""
+    
+    msg = MIMEText(corps)
+    msg['Subject'] = sujet
+    msg['From'] = expediteur
+    msg['To'] = email_destinataire
+
+    try:
+        # Connexion au serveur SMTP de Gmail
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(expediteur, mot_de_passe)
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        print(f"Erreur SMTP : {e}")
+        return False
 try:
     from xhtml2pdf import pisa
     PDF_AVAILABLE = True
@@ -495,202 +532,31 @@ with st.sidebar:
 # ============================================================
 # 📈 PAGE 1 : SUPERVISION TEMPS RÉEL
 # ============================================================
-def page_supervision(client_id: str, info: dict):
-    # --- Header ---
-    st.markdown(f"""
-    <div class="header-banner">
-        <div style="display:flex; align-items:center; gap:16px;">
-            <span style="font-size:3rem;">{info['avatar']}</span>
-            <div>
-                <p class="header-title">📊 Supervision Temps Réel</p>
-                <p class="header-sub">{info['nom']} &nbsp;•&nbsp; N° {client_id} &nbsp;•&nbsp; {info['lieu']}</p>
-            </div>
-            <div style="margin-left:auto;" class="live-badge">
-                <div class="live-dot"></div> LIVE
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+def page_supervision(selected_id, client_info):
+    st.title("📡 Supervision Smart-Grid en Temps Réel")
+    
+    # Bouton d'activation de la remontée automatique
+    simulation_active = st.toggle("Activer la simulation automatique des capteurs", key="sim_toggle")
+    
+    if simulation_active:
+        st.info("🔄 Acquisition automatique en cours... (Actualisation toutes les 2s)")
+        
+        # Génération aléatoire d'impulsions
+        increment_elec = random.randint(0, 15)  # Ajustez la plage selon le réalisme voulu
+        increment_gaz = random.randint(0, 5)
+        
+        # Mise à jour des compteurs dans la base de données ou le session_state
+        st.session_state['client_data'][selected_id]['impulsions_elec'] += increment_elec
+        st.session_state['client_data'][selected_id]['impulsions_gaz'] += increment_gaz
+        
+        # Pause pour simuler l'intervalle d'échantillonnage
+        time.sleep(2)
+        
+        # Force le rafraîchissement de l'interface pour afficher les nouvelles valeurs
+        st.rerun()
 
-    # ---- Acquisition des Impulsions ----
-    with st.container():
-        if "Simulation" in mode_acquisition:
-            st.markdown("""
-            <div style="background:#0d2137; border:1px solid #facc1544; border-radius:12px;
-                        padding:16px 20px; margin-bottom:16px;">
-                <span style="color:#facc15; font-weight:700;">🔧 Mode Simulation</span>
-                <span style="color:#a0c4d8; font-size:0.9rem; margin-left:10px;">
-                    Génération d'impulsions aléatoires pour tester le système
-                </span>
-            </div>
-            """, unsafe_allow_html=True)
-
-            col_btn1, col_btn2, col_btn3 = st.columns([2, 1, 2])
-            with col_btn2:
-                if st.button("⚡ Simuler Impulsions", use_container_width=True):
-                    imp_e = random.randint(1, 8)
-                    imp_g = random.randint(1, 4)
-                    inserer_impulsions(client_id, imp_e, imp_g)
-                    st.toast(f"✅ +{imp_e} imp. Élec | +{imp_g} imp. Gaz insérées !", icon="⚡")
-                    st.rerun()
-
-        else:
-            st.markdown("""
-            <div style="background:#0d2137; border:1px solid #4ade8044; border-radius:12px;
-                        padding:16px 20px; margin-bottom:16px;">
-                <span style="color:#4ade80; font-weight:700;">📡 Mode IoT — Carte ESP32 TTGO</span>
-                <span style="color:#a0c4d8; font-size:0.9rem; margin-left:10px;">
-                    Lecture des impulsions via réseau local (HTTP/JSON)
-                </span>
-            </div>
-            """, unsafe_allow_html=True)
-
-            col_ip, col_btn = st.columns([3, 1])
-            with col_ip:
-                ip_ttgo = st.text_input(
-                    "Adresse IP de la carte TTGO :",
-                    "192.168.1.50",
-                    placeholder="ex: 192.168.1.50"
-                )
-            with col_btn:
-                st.markdown("<br>", unsafe_allow_html=True)
-                if st.button("📡 Acquérir", use_container_width=True):
-                    try:
-                        url = f"http://{ip_ttgo}/impulsions"
-                        resp = requests.get(url, timeout=5)
-                        if resp.status_code == 200:
-                            data = resp.json()
-                            imp_e = int(data.get("imp_elec", 0))
-                            imp_g = int(data.get("imp_gaz", 0))
-                            inserer_impulsions(client_id, imp_e, imp_g)
-                            st.toast(f"✅ Acquis : +{imp_e} Élec, +{imp_g} Gaz", icon="📡")
-                            st.rerun()
-                        else:
-                            st.error(f"⚠️ Erreur HTTP {resp.status_code}")
-                    except requests.exceptions.ConnectionError:
-                        st.error("❌ Impossible de joindre la carte TTGO. Vérifiez l'adresse IP.")
-                    except Exception as e:
-                        st.error(f"❌ Erreur : {e}")
-
-    st.markdown('<hr class="styled-divider">', unsafe_allow_html=True)
-
-    # ---- Récupération des données ----
-    elec_val = get_live_data(client_id, "Elec")
-    gaz_val  = get_live_data(client_id, "Gaz")
-    facture  = calculer_facture(elec_val, gaz_val)
-
-    # ---- KPI Cards principales ----
-    st.markdown("### 📊 Tableau de Bord Temps Réel")
-    c1, c2, c3, c4 = st.columns(4)
-
-    kpis = [
-        ("⚡", "Consommation Électricité", f"{elec_val:,.2f}", "kWh", f"{int(elec_val / FACTEUR_IMPULSION_ELEC)} impulsions"),
-        ("🔥", "Consommation Gaz",         f"{gaz_val:,.2f}",  "Th",  f"{int(gaz_val / FACTEUR_IMPULSION_GAZ)} impulsions"),
-        ("DA", "Montant HT Total",          f"{facture['total_ht']:,.2f}", "DA",  f"Élec: {facture['ht_elec']:.2f} | Gaz: {facture['ht_gaz']:.2f}"),
-        ("🧾", "NET TTC à Payer",           f"{facture['net_ttc']:,.2f}", "DA",  f"Espèces: {facture['total_especes']:.2f} DA"),
-    ]
-    for col, (icon, label, val, unit, sub) in zip([c1, c2, c3, c4], kpis):
-        with col:
-            st.markdown(f"""
-            <div class="kpi-card">
-                <div class="kpi-icon">{icon}</div>
-                <div class="kpi-label">{label}</div>
-                <div class="kpi-value">{val} <span style="font-size:0.9rem;color:#7aadcb;">{unit}</span></div>
-                <div class="kpi-sub">{sub}</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # ---- Tranches en temps réel ----
-    col_elec, col_gaz = st.columns(2)
-
-    with col_elec:
-        st.markdown("#### ⚡ Tranches Électricité (kWh)")
-        for t in facture["data_elec"]:
-            pct = min(t["qte"] / t["limit"], 1.0) if t["limit"] > 0 else 0
-            bar_w = int(pct * 100)
-            st.markdown(f"""
-            <div class="tranche-card" style="border-left-color:{t['color']};">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div>
-                        <div class="tranche-title" style="color:{t['color']};">{t['tranche']}</div>
-                        <div class="tranche-val">{t['qte']:.2f} kWh</div>
-                        <div class="tranche-price">Prix : {t['prix']:.4f} DA/kWh</div>
-                    </div>
-                    <div class="tranche-mt">{t['mt']:.2f} DA</div>
-                </div>
-                <div class="progress-bar-container">
-                    <div class="progress-bar-fill" style="width:{bar_w}%; background:{t['color']};"></div>
-                </div>
-                <div style="color:#4a9eba; font-size:0.75rem; text-align:right; margin-top:4px;">{bar_w}% de la tranche</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-    with col_gaz:
-        st.markdown("#### 🔥 Tranches Gaz (Th)")
-        for t in facture["data_gaz"]:
-            pct = min(t["qte"] / t["limit"], 1.0) if t["limit"] > 0 else 0
-            bar_w = int(pct * 100)
-            st.markdown(f"""
-            <div class="tranche-card" style="border-left-color:{t['color']};">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div>
-                        <div class="tranche-title" style="color:{t['color']};">{t['tranche']}</div>
-                        <div class="tranche-val">{t['qte']:.2f} Th</div>
-                        <div class="tranche-price">Prix : {t['prix']:.4f} DA/Th</div>
-                    </div>
-                    <div class="tranche-mt">{t['mt']:.2f} DA</div>
-                </div>
-                <div class="progress-bar-container">
-                    <div class="progress-bar-fill" style="width:{bar_w}%; background:{t['color']};"></div>
-                </div>
-                <div style="color:#4a9eba; font-size:0.75rem; text-align:right; margin-top:4px;">{bar_w}% de la tranche</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-    st.markdown('<hr class="styled-divider">', unsafe_allow_html=True)
-
-    # ---- Graphiques historiques ----
-    df = get_historique(client_id, 60)
-    if not df.empty:
-        df_elec_h = df[df["type_energie"] == "Elec"].sort_values("timestamp")
-        df_gaz_h  = df[df["type_energie"] == "Gaz"].sort_values("timestamp")
-
-        st.markdown("### 📈 Évolution de la Consommation")
-        tab1, tab2, tab3 = st.tabs(["⚡ Électricité", "🔥 Gaz", "📋 Données Brutes"])
-
-        with tab1:
-            if not df_elec_h.empty:
-                chart_e = df_elec_h.set_index("timestamp")[["total_jour", "valeur_actuelle"]].rename(
-                    columns={"total_jour": "Cumulé (kWh)", "valeur_actuelle": "Impulsions/lecture"}
-                )
-                st.line_chart(chart_e, use_container_width=True)
-            else:
-                st.info("Aucune donnée électricité disponible.")
-
-        with tab2:
-            if not df_gaz_h.empty:
-                chart_g = df_gaz_h.set_index("timestamp")[["total_jour", "valeur_actuelle"]].rename(
-                    columns={"total_jour": "Cumulé (Th)", "valeur_actuelle": "Impulsions/lecture"}
-                )
-                st.line_chart(chart_g, use_container_width=True)
-            else:
-                st.info("Aucune donnée gaz disponible.")
-
-        with tab3:
-            st.dataframe(
-                df[["timestamp","type_energie","valeur_actuelle","total_jour"]].rename(columns={
-                    "timestamp": "Horodatage",
-                    "type_energie": "Énergie",
-                    "valeur_actuelle": "Impulsions",
-                    "total_jour": "Total Cumulé"
-                }),
-                use_container_width=True,
-                hide_index=True
-            )
-    else:
-        st.warning("⚠️ Aucune donnée disponible. Veuillez simuler ou acquérir des impulsions.")
+    # --- Reste de votre code d'affichage de la supervision ---
+    # Affichage des jauges, graphiques, etc.
 
     # ---- Bouton de rafraîchissement auto ----
     st.markdown("---")
@@ -1046,9 +912,6 @@ def page_facturation(client_id: str, info: dict):
             )
         else:
             st.info("📦 `pip install xhtml2pdf` pour activer l'export PDF")
-
-
-
 
 # ============================================================
 # 🚦 ROUTAGE PRINCIPAL
