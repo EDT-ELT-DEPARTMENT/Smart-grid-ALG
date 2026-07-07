@@ -740,6 +740,37 @@ def page_supervision(client_id: str, info: dict):
 # ============================================================
 # 🧾 PAGE 2 : FACTURATION DÉTAILLÉE
 # ============================================================
+# À placer dans l'interface de la page souhaitée
+st.markdown("### 🔔 Paramétrage des Alertes")
+
+# Case pour définir le montant voulu
+seuil_alerte = st.number_input(
+    "Définir le seuil d'alerte (DA)", 
+    min_value=0.0, 
+    value=5000.0, 
+    step=500.0
+)
+
+# Récupération du montant total de la facture simulée (en supposant que 'f' contient vos calculs)
+montant_actuel = f['net_ttc'] 
+
+# Initialisation de l'état pour ne pas spammer le client
+cle_alerte = f"alerte_envoyee_{selected_id}"
+if cle_alerte not in st.session_state:
+    st.session_state[cle_alerte] = False
+
+# Logique de déclenchement
+if montant_actuel >= seuil_alerte and not st.session_state[cle_alerte]:
+    email_client = client_info.get("email", "client@email.com") # Assurez-vous d'avoir l'e-mail du client dans vos données
+    succes = envoyer_alerte_email(email_client, montant_actuel, seuil_alerte, client_info["nom"])
+    
+    if succes:
+        st.session_state[cle_alerte] = True
+        st.toast(f"📧 Alerte envoyée avec succès à {email_client}", icon="⚠️")
+        
+# Si la consommation redescend (ex: remise à zéro du compteur), on réarme l'alerte
+elif montant_actuel < seuil_alerte:
+    st.session_state[cle_alerte] = False
 def page_facturation(client_id: str, info: dict):
     # --- Header ---
     st.markdown(f"""
