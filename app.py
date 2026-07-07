@@ -11,7 +11,44 @@ import io
 import requests
 from datetime import datetime
 import streamlit.components.v1 as components
+import smtplib
+from email.mime.text import MIMEText
+import time
+import random
 
+def envoyer_alerte_email(email_destinataire, montant_actuel, seuil, nom_client):
+    """Envoie un e-mail d'alerte lorsque le seuil de consommation est dépassé."""
+    # À configurer avec vos identifiants
+    expediteur = "votre.email.projet@gmail.com"
+    mot_de_passe = "votre_mot_de_passe_application" 
+    
+    sujet = "SONELGAZ - Alerte de dépassement de consommation"
+    corps = f"""Bonjour {nom_client},
+    
+Ceci est une alerte automatique de votre système Smart-Grid.
+Votre facture estimée actuelle s'élève à {montant_actuel:,.2f} DA.
+Elle vient de dépasser le seuil d'alerte que vous avez fixé à {seuil:,.2f} DA.
+
+Cordialement,
+Le système de télésurveillance.
+"""
+    
+    msg = MIMEText(corps)
+    msg['Subject'] = sujet
+    msg['From'] = expediteur
+    msg['To'] = email_destinataire
+
+    try:
+        # Connexion au serveur SMTP de Gmail
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(expediteur, mot_de_passe)
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        print(f"Erreur SMTP : {e}")
+        return False
 try:
     from xhtml2pdf import pisa
     PDF_AVAILABLE = True
