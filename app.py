@@ -480,7 +480,7 @@ with st.sidebar:
     st.markdown(f"""
     <div style="background:#0d2137; border-radius:10px; padding:12px; border:1px solid #00d4ff22;">
         <div style="color:#7aadcb; font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">
-            💰 Montant Estimé
+               Montant Estimé
         </div>
         <div style="color:#ffffff; font-size:1.4rem; font-weight:700;">
             {facture_sidebar['net_ttc']:,.2f} DA
