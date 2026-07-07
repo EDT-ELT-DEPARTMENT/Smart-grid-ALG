@@ -1105,7 +1105,7 @@ def page_facturation(client_id: str, info: dict):
     
     # Logique de déclenchement
     if montant_actuel >= seuil_alerte and not st.session_state[cle_alerte]:
-        email_client = client_info.get("email", "client@email.com") # Assurez-vous d'avoir l'e-mail du client dans vos données
+        email_client = client_info.get("email", "milouafarid@gmail.com") # Assurez-vous d'avoir l'e-mail du client dans vos données
         succes = envoyer_alerte_email(email_client, montant_actuel, seuil_alerte, client_info["nom"])
         
         if succes:
