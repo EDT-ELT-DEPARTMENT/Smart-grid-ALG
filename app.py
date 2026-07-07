@@ -1125,7 +1125,21 @@ def sauvegarder_facture_historique(f, info):
                    (info["nom"], f['net_ttc'], datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
     conn.commit()
     conn.close()
-
+if st.button("🔄 Réinitialiser le Système"):
+    # 1. Sauvegarder avant de supprimer (si nécessaire)
+    # sauvegarder_facture_historique(f, info) 
+    
+    # 2. Liste des clés à supprimer dans st.session_state
+    # On garde ce qu'on veut conserver (ex: 'historique' ou 'user_id')
+    cles_a_garder = ['historique', 'user_session'] 
+    
+    for key in list(st.session_state.keys()):
+        if key not in cles_a_garder:
+            del st.session_state[key]
+    
+    # 3. Message de confirmation
+    st.success("Système réinitialisé ! Historique préservé.")
+    st.rerun()
 # ============================================================
 # 🚦 ROUTAGE PRINCIPAL
 # ============================================================
