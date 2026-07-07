@@ -1091,7 +1091,7 @@ def page_facturation(client_id: str, info: dict):
     seuil_alerte = st.number_input(
         "Définir le seuil d'alerte (DA)", 
         min_value=0.0, 
-        value=5000.0, 
+        value=10 000.0, 
         step=500.0
     )
     
