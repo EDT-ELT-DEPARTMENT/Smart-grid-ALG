@@ -706,12 +706,16 @@ def page_supervision(client_id: str, info: dict):
 def page_facturation(client_id: str, info: dict):
     # --- Header ---
     st.markdown(f"""
-    <div class="header-banner">
+    <div style="background:linear-gradient(135deg,#003d7a 0%,#005bb5 50%,#0073e6 100%);
+                border-radius:16px; padding:24px 30px; margin-bottom:24px;
+                border:1px solid #0073e633; box-shadow:0 4px 20px rgba(0,115,230,0.3);">
         <div style="display:flex; align-items:center; gap:16px;">
             <span style="font-size:3rem;">{info['avatar']}</span>
             <div>
-                <p class="header-title">🧾 Facture de Consommation — SONELGAZ</p>
-                <p class="header-sub">
+                <p style="color:#ffffff; font-size:1.8rem; font-weight:800; margin:0;">
+                    🧾 Facture de Consommation — SONELGAZ
+                </p>
+                <p style="color:#a0d4ff; font-size:0.95rem; margin-top:6px;">
                     N° Facture : {info['facture']} &nbsp;•&nbsp;
                     Générée le : {datetime.now().strftime('%d/%m/%Y à %H:%M')}
                 </p>
@@ -727,101 +731,123 @@ def page_facturation(client_id: str, info: dict):
 
     # ---- Carte Client ----
     st.markdown(f"""
-    <div class="client-card">
-        <h4>👤 Informations Abonné</h4>
+    <div style="background:linear-gradient(135deg,#0d2137 0%,#142b45 100%);
+                border:1px solid #00d4ff33; border-radius:12px;
+                padding:18px 22px; margin-bottom:20px;">
+        <h4 style="color:#00d4ff; margin:0 0 12px 0;">👤 Informations Abonné</h4>
         <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:12px;">
             <div>
-                <div class="client-field">Nom du Client</div>
-                <div class="client-val">{info['nom']}</div>
+                <div style="color:#7aadcb; font-size:0.8rem; text-transform:uppercase;
+                            letter-spacing:1px;">Nom du Client</div>
+                <div style="color:#ffffff; font-weight:600; margin-top:4px;">{info['nom']}</div>
             </div>
             <div>
-                <div class="client-field">N° Client</div>
-                <div class="client-val">{client_id}</div>
+                <div style="color:#7aadcb; font-size:0.8rem; text-transform:uppercase;
+                            letter-spacing:1px;">N° Client</div>
+                <div style="color:#ffffff; font-weight:600; margin-top:4px;">{client_id}</div>
             </div>
             <div>
-                <div class="client-field">N° Facture</div>
-                <div class="client-val">{info['facture']}</div>
+                <div style="color:#7aadcb; font-size:0.8rem; text-transform:uppercase;
+                            letter-spacing:1px;">N° Facture</div>
+                <div style="color:#ffffff; font-weight:600; margin-top:4px;">{info['facture']}</div>
             </div>
             <div>
-                <div class="client-field">Lieu de consommation</div>
-                <div class="client-val">{info['lieu']}</div>
+                <div style="color:#7aadcb; font-size:0.8rem; text-transform:uppercase;
+                            letter-spacing:1px;">Lieu de consommation</div>
+                <div style="color:#ffffff; font-weight:600; margin-top:4px;">{info['lieu']}</div>
             </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # ---- Détails Tranches ----
-    col_e, col_g = st.columns(2)
-
+    # ---- Tableaux des tranches ----
     def render_table_tranches(data, unite, ht):
         rows = ""
         for t in data:
             rows += f"""
             <tr>
-                <td style="color:{t['color']}; font-weight:600;">{t['tranche']}</td>
-                <td style="color:#ffffff;">{t['qte']:.2f} {unite}</td>
-                <td style="color:#7aadcb;">{t['prix']:.4f} DA/{unite}</td>
-                <td style="color:#4ade80; font-weight:700;">{t['mt']:.2f} DA</td>
+                <td style="padding:9px 12px; border-bottom:1px solid #1a2942;
+                           color:{t['color']}; font-weight:600;">{t['tranche']}</td>
+                <td style="padding:9px 12px; border-bottom:1px solid #1a2942;
+                           color:#ffffff;">{t['qte']:.2f} {unite}</td>
+                <td style="padding:9px 12px; border-bottom:1px solid #1a2942;
+                           color:#7aadcb;">{t['prix']:.4f} DA/{unite}</td>
+                <td style="padding:9px 12px; border-bottom:1px solid #1a2942;
+                           color:#4ade80; font-weight:700;">{t['mt']:.2f} DA</td>
             </tr>"""
         return f"""
-        <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
-            <thead>
-                <tr style="background:#0a1e35;">
-                    <th style="padding:10px; text-align:left; color:#00d4ff; border-bottom:2px solid #00d4ff44;">Tranche</th>
-                    <th style="padding:10px; text-align:left; color:#00d4ff; border-bottom:2px solid #00d4ff44;">Quantité</th>
-                    <th style="padding:10px; text-align:left; color:#00d4ff; border-bottom:2px solid #00d4ff44;">Prix Unitaire</th>
-                    <th style="padding:10px; text-align:left; color:#00d4ff; border-bottom:2px solid #00d4ff44;">Montant HT</th>
-                </tr>
-            </thead>
-            <tbody>{rows}</tbody>
-            <tfoot>
-                <tr style="background:#0a2540;">
-                    <td colspan="3" style="padding:10px; color:#a0c4d8; font-weight:600;">SOUS-TOTAL HT</td>
-                    <td style="padding:10px; color:#facc15; font-size:1.1rem; font-weight:700;">{ht:.2f} DA</td>
-                </tr>
-            </tfoot>
-        </table>
-        """
+        <div style="background:#0d2137; border-radius:12px; padding:16px;
+                    border:1px solid #00d4ff22; overflow:hidden;">
+            <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+                <thead>
+                    <tr style="background:#0a1e35;">
+                        <th style="padding:10px 12px; text-align:left; color:#00d4ff;
+                                   border-bottom:2px solid #00d4ff44;">Tranche</th>
+                        <th style="padding:10px 12px; text-align:left; color:#00d4ff;
+                                   border-bottom:2px solid #00d4ff44;">Quantité</th>
+                        <th style="padding:10px 12px; text-align:left; color:#00d4ff;
+                                   border-bottom:2px solid #00d4ff44;">Prix Unitaire</th>
+                        <th style="padding:10px 12px; text-align:left; color:#00d4ff;
+                                   border-bottom:2px solid #00d4ff44;">Montant HT</th>
+                    </tr>
+                </thead>
+                <tbody>{rows}</tbody>
+                <tfoot>
+                    <tr style="background:#0a2540;">
+                        <td colspan="3" style="padding:10px 12px; color:#a0c4d8;
+                                              font-weight:600;">SOUS-TOTAL HT</td>
+                        <td style="padding:10px 12px; color:#facc15;
+                                   font-size:1.05rem; font-weight:700;">{ht:.2f} DA</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>"""
 
+    col_e, col_g = st.columns(2)
     with col_e:
         st.markdown(f"#### ⚡ Électricité — {conso_elec:.2f} kWh")
         st.markdown(
-            f'<div style="background:#0d2137; border-radius:12px; padding:16px; border:1px solid #00d4ff22;">'
-            + render_table_tranches(f["data_elec"], "kWh", f["ht_elec"]) +
-            '</div>',
+            render_table_tranches(f["data_elec"], "kWh", f["ht_elec"]),
             unsafe_allow_html=True
         )
-
     with col_g:
         st.markdown(f"#### 🔥 Gaz — {conso_gaz:.2f} Th")
         st.markdown(
-            f'<div style="background:#0d2137; border-radius:12px; padding:16px; border:1px solid #00d4ff22;">'
-            + render_table_tranches(f["data_gaz"], "Th", f["ht_gaz"]) +
-            '</div>',
+            render_table_tranches(f["data_gaz"], "Th", f["ht_gaz"]),
             unsafe_allow_html=True
         )
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ---- Récapitulatif Financier ----
+    # ---- Taxes & Récapitulatif — 100% inline styles ----
     col_taxes, col_recap = st.columns(2)
 
     with col_taxes:
         st.markdown("#### 📋 Taxes et Redevances")
-        taxes_html = ""
+
+        # Construire les lignes de taxes avec styles inline
+        taxes_rows = ""
         for nom, val in f["taxes"].items():
-            taxes_html += f"""
-            <div style="display:flex; justify-content:space-between; padding:8px 0;
-                        border-bottom:1px solid #1a2942;">
-                <span style="color:#a0c4d8;">{nom}</span>
-                <span style="color:#facc15; font-weight:600;">{val:.2f} DA</span>
+            taxes_rows += f"""
+            <div style="display:flex; justify-content:space-between;
+                        padding:9px 0; border-bottom:1px solid #1a2942;">
+                <span style="color:#a0c4d8; font-size:0.9rem;">{nom}</span>
+                <span style="color:#facc15; font-weight:600; font-size:0.9rem;">{val:.2f} DA</span>
             </div>"""
+
         st.markdown(f"""
-        <div class="finance-summary">
-            {taxes_html}
-            <div style="display:flex; justify-content:space-between; padding:10px 0 0 0; margin-top:6px;">
-                <span style="color:#ffffff; font-weight:700;">Total Taxes</span>
-                <span style="color:#f87171; font-size:1.2rem; font-weight:700;">{f['total_taxes']:.2f} DA</span>
+        <div style="background:linear-gradient(135deg,#0a1e35 0%,#0d2a40 100%);
+                    border:2px solid #00d4ff55; border-radius:16px; padding:20px 24px;">
+            {taxes_rows}
+            <div style="display:flex; justify-content:space-between;
+                        padding:12px 0 0 0; margin-top:8px;
+                        border-top:2px solid #00d4ff33;">
+                <span style="color:#ffffff; font-weight:700; font-size:1rem;">
+                    Total Taxes
+                </span>
+                <span style="color:#f87171; font-size:1.2rem; font-weight:700;">
+                    {f['total_taxes']:.2f} DA
+                </span>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -829,115 +855,155 @@ def page_facturation(client_id: str, info: dict):
     with col_recap:
         st.markdown("#### 💰 Récapitulatif Final")
         st.markdown(f"""
-        <div class="finance-summary">
-            <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #1a2942;">
-                <span style="color:#a0c4d8;">Montant HT Électricité</span>
+        <div style="background:linear-gradient(135deg,#0a1e35 0%,#0d2a40 100%);
+                    border:2px solid #00d4ff55; border-radius:16px; padding:20px 24px;">
+
+            <div style="display:flex; justify-content:space-between;
+                        padding:9px 0; border-bottom:1px solid #1a2942;">
+                <span style="color:#a0c4d8; font-size:0.9rem;">Montant HT Électricité</span>
                 <span style="color:#ffffff; font-weight:600;">{f['ht_elec']:.2f} DA</span>
             </div>
-            <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #1a2942;">
-                <span style="color:#a0c4d8;">Montant HT Gaz</span>
+
+            <div style="display:flex; justify-content:space-between;
+                        padding:9px 0; border-bottom:1px solid #1a2942;">
+                <span style="color:#a0c4d8; font-size:0.9rem;">Montant HT Gaz</span>
                 <span style="color:#ffffff; font-weight:600;">{f['ht_gaz']:.2f} DA</span>
             </div>
-            <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #1a2942;">
-                <span style="color:#a0c4d8;">Total HT</span>
-                <span style="color:#facc15; font-weight:700; font-size:1.05rem;">{f['total_ht']:.2f} DA</span>
+
+            <div style="display:flex; justify-content:space-between;
+                        padding:9px 0; border-bottom:1px solid #1a2942;">
+                <span style="color:#a0c4d8; font-size:0.9rem;">Total HT</span>
+                <span style="color:#facc15; font-weight:700; font-size:1.05rem;">
+                    {f['total_ht']:.2f} DA
+                </span>
             </div>
-            <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #1a2942;">
-                <span style="color:#a0c4d8;">Total Taxes</span>
+
+            <div style="display:flex; justify-content:space-between;
+                        padding:9px 0; border-bottom:1px solid #1a2942;">
+                <span style="color:#a0c4d8; font-size:0.9rem;">Total Taxes</span>
                 <span style="color:#f87171; font-weight:600;">{f['total_taxes']:.2f} DA</span>
             </div>
 
-            <div class="net-payer" style="margin-top:14px;">
-                <div class="net-payer-label">NET À PAYER TTC</div>
-                <div class="net-payer-value">{f['net_ttc']:,.2f} DA</div>
+            <!-- NET À PAYER TTC -->
+            <div style="background:linear-gradient(135deg,#003d7a,#005bb5);
+                        border-radius:12px; padding:16px; text-align:center; margin-top:16px;">
+                <div style="color:#a0d4ff; font-size:0.8rem; text-transform:uppercase;
+                            letter-spacing:1.5px; font-weight:600;">
+                    NET À PAYER TTC
+                </div>
+                <div style="color:#ffffff; font-size:2.2rem; font-weight:800; margin-top:6px;">
+                    {f['net_ttc']:,.2f} DA
+                </div>
             </div>
 
-            <div class="especes-total">
-                <div class="especes-label">🏦 TOTAL ESPÈCES (+ timbre {f['taxes']['Timbre']:.2f} DA)</div>
-                <div class="especes-value">{f['total_especes']:,.2f} DA</div>
+            <!-- TOTAL ESPÈCES -->
+            <div style="background:linear-gradient(135deg,#7f1d1d,#991b1b);
+                        border-radius:12px; padding:13px; text-align:center; margin-top:10px;">
+                <div style="color:#fca5a5; font-size:0.78rem; letter-spacing:1px;">
+                    🏦 TOTAL ESPÈCES (+ timbre {f['taxes']['Timbre']:.2f} DA)
+                </div>
+                <div style="color:#ffffff; font-size:1.6rem; font-weight:700; margin-top:4px;">
+                    {f['total_especes']:,.2f} DA
+                </div>
             </div>
+
         </div>
         """, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ---- Génération PDF & Téléchargement ----
+    # ---- Export PDF & HTML ----
     facture_html_export = f"""<!DOCTYPE html>
 <html><head>
 <meta charset="utf-8">
 <style>
   body {{ font-family: Arial, sans-serif; color: #1a1a2e; margin: 0; padding: 20px; }}
-  .header {{ background: #004a99; color: white; padding: 20px; text-align: center; border-radius: 8px; margin-bottom: 20px; }}
-  .header h1 {{ margin: 0; font-size: 22px; }}
-  .header p  {{ margin: 4px 0 0 0; font-size: 13px; color: #a0d4ff; }}
-  .client-box {{ background: #f0f6ff; border-left: 5px solid #004a99; padding: 14px; margin-bottom: 20px; border-radius: 0 8px 8px 0; }}
-  .client-box p {{ margin: 4px 0; font-size: 13px; }}
-  h3 {{ color: #004a99; border-bottom: 2px solid #004a99; padding-bottom: 4px; font-size: 15px; }}
-  table {{ width: 100%; border-collapse: collapse; margin-bottom: 18px; font-size: 13px; }}
-  th {{ background: #005bb5; color: white; padding: 9px 12px; text-align: left; }}
-  td {{ padding: 8px 12px; border-bottom: 1px solid #dce8f5; }}
-  tr:nth-child(even) {{ background: #f7fbff; }}
-  .tfoot-row td {{ background: #e8f0fe; font-weight: bold; color: #004a99; }}
-  .summary-grid {{ display: flex; gap: 20px; }}
-  .tax-box, .recap-box {{ flex: 1; background: #f0f6ff; border: 1px solid #c0d8f0; border-radius: 8px; padding: 14px; }}
-  .recap-box p {{ margin: 5px 0; font-size: 13px; }}
-  .net-block {{ background: #004a99; color: white; border-radius: 6px; padding: 12px; text-align: center; margin: 10px 0; }}
-  .net-block .label {{ font-size: 11px; letter-spacing: 1px; }}
-  .net-block .amount {{ font-size: 22px; font-weight: 800; }}
-  .esp-block {{ background: #b91c1c; color: white; border-radius: 6px; padding: 10px; text-align: center; }}
-  .esp-block .amount {{ font-size: 18px; font-weight: 700; }}
-  .footer {{ text-align: center; margin-top: 20px; color: #666; font-size: 11px; }}
+  .header {{ background:#004a99; color:white; padding:20px; text-align:center;
+             border-radius:8px; margin-bottom:20px; }}
+  .header h1 {{ margin:0; font-size:22px; }}
+  .header p  {{ margin:4px 0 0 0; font-size:13px; color:#a0d4ff; }}
+  .client-box {{ background:#f0f6ff; border-left:5px solid #004a99;
+                 padding:14px; margin-bottom:20px; border-radius:0 8px 8px 0; }}
+  .client-box p {{ margin:4px 0; font-size:13px; }}
+  h3 {{ color:#004a99; border-bottom:2px solid #004a99;
+        padding-bottom:4px; font-size:15px; }}
+  table {{ width:100%; border-collapse:collapse; margin-bottom:18px; font-size:13px; }}
+  th {{ background:#005bb5; color:white; padding:9px 12px; text-align:left; }}
+  td {{ padding:8px 12px; border-bottom:1px solid #dce8f5; }}
+  tr:nth-child(even) {{ background:#f7fbff; }}
+  .tfoot-row td {{ background:#e8f0fe; font-weight:bold; color:#004a99; }}
+  .summary-grid {{ display:flex; gap:20px; }}
+  .tax-box, .recap-box {{ flex:1; background:#f0f6ff; border:1px solid #c0d8f0;
+                           border-radius:8px; padding:14px; }}
+  .recap-box p {{ margin:5px 0; font-size:13px; }}
+  .net-block {{ background:#004a99; color:white; border-radius:6px;
+                padding:12px; text-align:center; margin:10px 0; }}
+  .net-block .label  {{ font-size:11px; letter-spacing:1px; }}
+  .net-block .amount {{ font-size:22px; font-weight:800; }}
+  .esp-block {{ background:#b91c1c; color:white; border-radius:6px;
+                padding:10px; text-align:center; }}
+  .esp-block .amount {{ font-size:18px; font-weight:700; }}
+  .footer {{ text-align:center; margin-top:20px; color:#666; font-size:11px; }}
 </style>
 </head>
 <body>
 <div class="header">
-  <h1>⚡ SONELGAZ — Facture de Consommation</h1>
+  <h1>SONELGAZ — Facture de Consommation</h1>
   <p>Générée le {datetime.now().strftime('%d/%m/%Y à %H:%M:%S')} | Smart-Grid v2.0</p>
 </div>
 <div class="client-box">
   <p><strong>Nom :</strong> {info['nom']}</p>
-  <p><strong>N° Client :</strong> {client_id} &nbsp;&nbsp; <strong>N° Facture :</strong> {info['facture']}</p>
+  <p><strong>N° Client :</strong> {client_id} &nbsp;&nbsp;
+     <strong>N° Facture :</strong> {info['facture']}</p>
   <p><strong>Lieu :</strong> {info['lieu']}</p>
 </div>
-<h3>⚡ Électricité — {conso_elec:.2f} kWh</h3>
+<h3>Electricite — {conso_elec:.2f} kWh</h3>
 <table>
-  <tr><th>Tranche</th><th>Quantité (kWh)</th><th>Prix (DA/kWh)</th><th>Montant HT (DA)</th></tr>
-  {"".join(f"<tr><td>{t['tranche']}</td><td>{t['qte']:.2f}</td><td>{t['prix']:.4f}</td><td>{t['mt']:.2f}</td></tr>" for t in f['data_elec'])}
-  <tr class="tfoot-row"><td colspan="3">Sous-Total Électricité HT</td><td>{f['ht_elec']:.2f}</td></tr>
+  <tr><th>Tranche</th><th>Quantite (kWh)</th><th>Prix (DA/kWh)</th><th>Montant HT (DA)</th></tr>
+  {"".join(f'<tr><td>{t["tranche"]}</td><td>{t["qte"]:.2f}</td><td>{t["prix"]:.4f}</td><td>{t["mt"]:.2f}</td></tr>' for t in f['data_elec'])}
+  <tr class="tfoot-row">
+    <td colspan="3">Sous-Total Electricite HT</td>
+    <td>{f['ht_elec']:.2f}</td>
+  </tr>
 </table>
-<h3>🔥 Gaz — {conso_gaz:.2f} Th</h3>
+<h3>Gaz — {conso_gaz:.2f} Th</h3>
 <table>
-  <tr><th>Tranche</th><th>Quantité (Th)</th><th>Prix (DA/Th)</th><th>Montant HT (DA)</th></tr>
-  {"".join(f"<tr><td>{t['tranche']}</td><td>{t['qte']:.2f}</td><td>{t['prix']:.4f}</td><td>{t['mt']:.2f}</td></tr>" for t in f['data_gaz'])}
-  <tr class="tfoot-row"><td colspan="3">Sous-Total Gaz HT</td><td>{f['ht_gaz']:.2f}</td></tr>
+  <tr><th>Tranche</th><th>Quantite (Th)</th><th>Prix (DA/Th)</th><th>Montant HT (DA)</th></tr>
+  {"".join(f'<tr><td>{t["tranche"]}</td><td>{t["qte"]:.2f}</td><td>{t["prix"]:.4f}</td><td>{t["mt"]:.2f}</td></tr>' for t in f['data_gaz'])}
+  <tr class="tfoot-row">
+    <td colspan="3">Sous-Total Gaz HT</td>
+    <td>{f['ht_gaz']:.2f}</td>
+  </tr>
 </table>
 <div class="summary-grid">
   <div class="tax-box">
-    <h3>Taxes & Redevances</h3>
-    {"".join(f"<p>{k} : <strong>{v:.2f} DA</strong></p>" for k, v in f['taxes'].items())}
+    <h3>Taxes et Redevances</h3>
+    {"".join(f'<p>{k} : <strong>{v:.2f} DA</strong></p>' for k, v in f['taxes'].items())}
+    <p><strong>Total Taxes : {f['total_taxes']:.2f} DA</strong></p>
   </div>
   <div class="recap-box">
-    <h3>Récapitulatif Financier</h3>
-    <p>Total HT Électricité : <strong>{f['ht_elec']:.2f} DA</strong></p>
+    <h3>Recapitulatif Financier</h3>
+    <p>Total HT Electricite : <strong>{f['ht_elec']:.2f} DA</strong></p>
     <p>Total HT Gaz : <strong>{f['ht_gaz']:.2f} DA</strong></p>
     <p>Total HT : <strong>{f['total_ht']:.2f} DA</strong></p>
     <p>Total Taxes : <strong>{f['total_taxes']:.2f} DA</strong></p>
     <div class="net-block">
-      <div class="label">NET À PAYER TTC</div>
+      <div class="label">NET A PAYER TTC</div>
       <div class="amount">{f['net_ttc']:,.2f} DA</div>
     </div>
     <div class="esp-block">
-      <div class="label" style="font-size:11px;">TOTAL ESPÈCES (timbre inclus)</div>
+      <div class="label" style="font-size:11px;">TOTAL ESPECES (timbre inclus)</div>
       <div class="amount">{f['total_especes']:,.2f} DA</div>
     </div>
   </div>
 </div>
-<div class="footer">Document généré automatiquement par Smart-Grid SONELGAZ v2.0 — {datetime.now().year}</div>
+<div class="footer">
+  Document genere automatiquement par Smart-Grid SONELGAZ v2.0 — {datetime.now().year}
+</div>
 </body></html>"""
 
     st.markdown("#### 📥 Télécharger la Facture")
     c1, c2 = st.columns(2)
-
     with c1:
         st.download_button(
             label="📄 Télécharger HTML",
@@ -960,7 +1026,8 @@ def page_facturation(client_id: str, info: dict):
                 use_container_width=True
             )
         else:
-            st.info("📦 Installez `xhtml2pdf` pour activer l'export PDF : `pip install xhtml2pdf`")
+            st.info("📦 `pip install xhtml2pdf` pour activer l'export PDF")
+
 
 
 # ============================================================
