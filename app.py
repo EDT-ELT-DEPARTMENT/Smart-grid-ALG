@@ -19,8 +19,8 @@ import random
 def envoyer_alerte_email(email_destinataire, montant_actuel, seuil, nom_client):
     """Envoie un e-mail d'alerte lorsque le seuil de consommation est dépassé."""
     # À configurer avec vos identifiants
-    expediteur = "votre.email.projet@gmail.com"
-    mot_de_passe = "votre_mot_de_passe_application" 
+    expediteur = "chef.department.elt.fge@gmail.com"
+    mot_de_passe = "gkzs pdza yodb icvd" 
     
     sujet = "SONELGAZ - Alerte de dépassement de consommation"
     corps = f"""Bonjour {nom_client},
