@@ -586,7 +586,7 @@ def page_supervision(client_id: str, info: dict):
     kpis = [
         ("⚡", "Consommation Électricité", f"{elec_val:,.2f}", "kWh", f"{int(elec_val / FACTEUR_IMPULSION_ELEC)} impulsions"),
         ("🔥", "Consommation Gaz",         f"{gaz_val:,.2f}",  "Th",  f"{int(gaz_val / FACTEUR_IMPULSION_GAZ)} impulsions"),
-        ("💰", "Montant HT Total",          f"{facture['total_ht']:,.2f}", "DA",  f"Élec: {facture['ht_elec']:.2f} | Gaz: {facture['ht_gaz']:.2f}"),
+        ("DA", "Montant HT Total",          f"{facture['total_ht']:,.2f}", "DA",  f"Élec: {facture['ht_elec']:.2f} | Gaz: {facture['ht_gaz']:.2f}"),
         ("🧾", "NET TTC à Payer",           f"{facture['net_ttc']:,.2f}", "DA",  f"Espèces: {facture['total_especes']:.2f} DA"),
     ]
     for col, (icon, label, val, unit, sub) in zip([c1, c2, c3, c4], kpis):
@@ -851,7 +851,7 @@ def page_facturation(client_id: str, info: dict):
         st.markdown(taxes_html, unsafe_allow_html=True)
 
     with col_recap:
-        st.markdown("#### 💰 Récapitulatif Final")
+        st.markdown("#### DA Récapitulatif Final")
 
         # Extraire les valeurs AVANT la construction HTML (évite les f-strings imbriqués)
         ht_elec_v      = f['ht_elec']
