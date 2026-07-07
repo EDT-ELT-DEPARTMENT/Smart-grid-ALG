@@ -1115,7 +1115,16 @@ def page_facturation(client_id: str, info: dict):
     # Si la consommation redescend (ex: remise à zéro du compteur), on réarme l'alerte
     elif montant_actuel < seuil_alerte:
         st.session_state[cle_alerte] = False
-
+def sauvegarder_facture_historique(f, info):
+    # Connexion à votre base de données existante
+    conn = sqlite3.connect('smart_grid.db')
+    cursor = conn.cursor()
+    # Insertion des données de la facture
+    cursor.execute('''INSERT INTO historique_facturation 
+                      (nom, montant_ttc, date_gen) VALUES (?, ?, ?)''', 
+                   (info["nom"], f['net_ttc'], datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+    conn.commit()
+    conn.close()
 
 # ============================================================
 # 🚦 ROUTAGE PRINCIPAL
