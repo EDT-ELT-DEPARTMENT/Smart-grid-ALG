@@ -819,196 +819,215 @@ def page_facturation(client_id: str, info: dict):
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ---- Taxes & Récapitulatif — 100% inline styles ----
+        # ---- Taxes & Récapitulatif ----
     col_taxes, col_recap = st.columns(2)
 
     with col_taxes:
         st.markdown("#### 📋 Taxes et Redevances")
 
-        # Construire les lignes de taxes avec styles inline
+        # Construction des lignes — PAS de commentaires HTML, guillemets sécurisés
         taxes_rows = ""
         for nom, val in f["taxes"].items():
-            taxes_rows += f"""
-            <div style="display:flex; justify-content:space-between;
-                        padding:9px 0; border-bottom:1px solid #1a2942;">
-                <span style="color:#a0c4d8; font-size:0.9rem;">{nom}</span>
-                <span style="color:#facc15; font-weight:600; font-size:0.9rem;">{val:.2f} DA</span>
-            </div>"""
+            taxes_rows += (
+                '<div style="display:flex; justify-content:space-between;'
+                ' padding:9px 0; border-bottom:1px solid #1a2942;">'
+                f'<span style="color:#a0c4d8; font-size:0.9rem;">{nom}</span>'
+                f'<span style="color:#facc15; font-weight:600; font-size:0.9rem;">{val:.2f} DA</span>'
+                '</div>'
+            )
 
-        st.markdown(f"""
-        <div style="background:linear-gradient(135deg,#0a1e35 0%,#0d2a40 100%);
-                    border:2px solid #00d4ff55; border-radius:16px; padding:20px 24px;">
-            {taxes_rows}
-            <div style="display:flex; justify-content:space-between;
-                        padding:12px 0 0 0; margin-top:8px;
-                        border-top:2px solid #00d4ff33;">
-                <span style="color:#ffffff; font-weight:700; font-size:1rem;">
-                    Total Taxes
-                </span>
-                <span style="color:#f87171; font-size:1.2rem; font-weight:700;">
-                    {f['total_taxes']:.2f} DA
-                </span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        total_taxes_val = f['total_taxes']
+        taxes_html = (
+            '<div style="background:linear-gradient(135deg,#0a1e35 0%,#0d2a40 100%);'
+            ' border:2px solid #00d4ff55; border-radius:16px; padding:20px 24px;">'
+            + taxes_rows +
+            '<div style="display:flex; justify-content:space-between;'
+            ' padding:12px 0 0 0; margin-top:8px; border-top:2px solid #00d4ff33;">'
+            '<span style="color:#ffffff; font-weight:700; font-size:1rem;">Total Taxes</span>'
+            f'<span style="color:#f87171; font-size:1.2rem; font-weight:700;">{total_taxes_val:.2f} DA</span>'
+            '</div>'
+            '</div>'
+        )
+        st.markdown(taxes_html, unsafe_allow_html=True)
 
     with col_recap:
         st.markdown("#### 💰 Récapitulatif Final")
-        st.markdown(f"""
-        <div style="background:linear-gradient(135deg,#0a1e35 0%,#0d2a40 100%);
-                    border:2px solid #00d4ff55; border-radius:16px; padding:20px 24px;">
 
-            <div style="display:flex; justify-content:space-between;
-                        padding:9px 0; border-bottom:1px solid #1a2942;">
-                <span style="color:#a0c4d8; font-size:0.9rem;">Montant HT Électricité</span>
-                <span style="color:#ffffff; font-weight:600;">{f['ht_elec']:.2f} DA</span>
-            </div>
+        # Extraire les valeurs AVANT la construction HTML (évite les f-strings imbriqués)
+        ht_elec_v      = f['ht_elec']
+        ht_gaz_v       = f['ht_gaz']
+        total_ht_v     = f['total_ht']
+        total_taxes_v  = f['total_taxes']
+        net_ttc_v      = f['net_ttc']
+        total_esp_v    = f['total_especes']
+        timbre_v       = f['taxes']['Timbre']
 
-            <div style="display:flex; justify-content:space-between;
-                        padding:9px 0; border-bottom:1px solid #1a2942;">
-                <span style="color:#a0c4d8; font-size:0.9rem;">Montant HT Gaz</span>
-                <span style="color:#ffffff; font-weight:600;">{f['ht_gaz']:.2f} DA</span>
-            </div>
+        recap_html = (
+            '<div style="background:linear-gradient(135deg,#0a1e35 0%,#0d2a40 100%);'
+            ' border:2px solid #00d4ff55; border-radius:16px; padding:20px 24px;">'
 
-            <div style="display:flex; justify-content:space-between;
-                        padding:9px 0; border-bottom:1px solid #1a2942;">
-                <span style="color:#a0c4d8; font-size:0.9rem;">Total HT</span>
-                <span style="color:#facc15; font-weight:700; font-size:1.05rem;">
-                    {f['total_ht']:.2f} DA
-                </span>
-            </div>
+            # Ligne 1
+            '<div style="display:flex; justify-content:space-between;'
+            ' padding:9px 0; border-bottom:1px solid #1a2942;">'
+            '<span style="color:#a0c4d8; font-size:0.9rem;">Montant HT Electricite</span>'
+            f'<span style="color:#ffffff; font-weight:600;">{ht_elec_v:.2f} DA</span>'
+            '</div>'
 
-            <div style="display:flex; justify-content:space-between;
-                        padding:9px 0; border-bottom:1px solid #1a2942;">
-                <span style="color:#a0c4d8; font-size:0.9rem;">Total Taxes</span>
-                <span style="color:#f87171; font-weight:600;">{f['total_taxes']:.2f} DA</span>
-            </div>
+            # Ligne 2
+            '<div style="display:flex; justify-content:space-between;'
+            ' padding:9px 0; border-bottom:1px solid #1a2942;">'
+            '<span style="color:#a0c4d8; font-size:0.9rem;">Montant HT Gaz</span>'
+            f'<span style="color:#ffffff; font-weight:600;">{ht_gaz_v:.2f} DA</span>'
+            '</div>'
 
-            <!-- NET À PAYER TTC -->
-            <div style="background:linear-gradient(135deg,#003d7a,#005bb5);
-                        border-radius:12px; padding:16px; text-align:center; margin-top:16px;">
-                <div style="color:#a0d4ff; font-size:0.8rem; text-transform:uppercase;
-                            letter-spacing:1.5px; font-weight:600;">
-                    NET À PAYER TTC
-                </div>
-                <div style="color:#ffffff; font-size:2.2rem; font-weight:800; margin-top:6px;">
-                    {f['net_ttc']:,.2f} DA
-                </div>
-            </div>
+            # Ligne 3
+            '<div style="display:flex; justify-content:space-between;'
+            ' padding:9px 0; border-bottom:1px solid #1a2942;">'
+            '<span style="color:#a0c4d8; font-size:0.9rem;">Total HT</span>'
+            f'<span style="color:#facc15; font-weight:700; font-size:1.05rem;">{total_ht_v:.2f} DA</span>'
+            '</div>'
 
-            <!-- TOTAL ESPÈCES -->
-            <div style="background:linear-gradient(135deg,#7f1d1d,#991b1b);
-                        border-radius:12px; padding:13px; text-align:center; margin-top:10px;">
-                <div style="color:#fca5a5; font-size:0.78rem; letter-spacing:1px;">
-                    🏦 TOTAL ESPÈCES (+ timbre {f['taxes']['Timbre']:.2f} DA)
-                </div>
-                <div style="color:#ffffff; font-size:1.6rem; font-weight:700; margin-top:4px;">
-                    {f['total_especes']:,.2f} DA
-                </div>
-            </div>
+            # Ligne 4
+            '<div style="display:flex; justify-content:space-between;'
+            ' padding:9px 0; border-bottom:1px solid #1a2942;">'
+            '<span style="color:#a0c4d8; font-size:0.9rem;">Total Taxes</span>'
+            f'<span style="color:#f87171; font-weight:600;">{total_taxes_v:.2f} DA</span>'
+            '</div>'
 
-        </div>
-        """, unsafe_allow_html=True)
+            # Bloc NET TTC — SANS commentaire HTML
+            '<div style="background:linear-gradient(135deg,#003d7a,#005bb5);'
+            ' border-radius:12px; padding:16px; text-align:center; margin-top:16px;">'
+            '<div style="color:#a0d4ff; font-size:0.8rem; text-transform:uppercase;'
+            ' letter-spacing:1.5px; font-weight:600;">NET A PAYER TTC</div>'
+            f'<div style="color:#ffffff; font-size:2.2rem; font-weight:800; margin-top:6px;">{net_ttc_v:,.2f} DA</div>'
+            '</div>'
+
+            # Bloc ESPECES — SANS commentaire HTML
+            '<div style="background:linear-gradient(135deg,#7f1d1d,#991b1b);'
+            ' border-radius:12px; padding:13px; text-align:center; margin-top:10px;">'
+            f'<div style="color:#fca5a5; font-size:0.78rem; letter-spacing:1px;">TOTAL ESPECES (+ timbre {timbre_v:.2f} DA)</div>'
+            f'<div style="color:#ffffff; font-size:1.6rem; font-weight:700; margin-top:4px;">{total_esp_v:,.2f} DA</div>'
+            '</div>'
+
+            '</div>'
+        )
+        st.markdown(recap_html, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ---- Export PDF & HTML ----
-    facture_html_export = f"""<!DOCTYPE html>
-<html><head>
-<meta charset="utf-8">
-<style>
-  body {{ font-family: Arial, sans-serif; color: #1a1a2e; margin: 0; padding: 20px; }}
-  .header {{ background:#004a99; color:white; padding:20px; text-align:center;
-             border-radius:8px; margin-bottom:20px; }}
-  .header h1 {{ margin:0; font-size:22px; }}
-  .header p  {{ margin:4px 0 0 0; font-size:13px; color:#a0d4ff; }}
-  .client-box {{ background:#f0f6ff; border-left:5px solid #004a99;
-                 padding:14px; margin-bottom:20px; border-radius:0 8px 8px 0; }}
-  .client-box p {{ margin:4px 0; font-size:13px; }}
-  h3 {{ color:#004a99; border-bottom:2px solid #004a99;
-        padding-bottom:4px; font-size:15px; }}
-  table {{ width:100%; border-collapse:collapse; margin-bottom:18px; font-size:13px; }}
-  th {{ background:#005bb5; color:white; padding:9px 12px; text-align:left; }}
-  td {{ padding:8px 12px; border-bottom:1px solid #dce8f5; }}
-  tr:nth-child(even) {{ background:#f7fbff; }}
-  .tfoot-row td {{ background:#e8f0fe; font-weight:bold; color:#004a99; }}
-  .summary-grid {{ display:flex; gap:20px; }}
-  .tax-box, .recap-box {{ flex:1; background:#f0f6ff; border:1px solid #c0d8f0;
-                           border-radius:8px; padding:14px; }}
-  .recap-box p {{ margin:5px 0; font-size:13px; }}
-  .net-block {{ background:#004a99; color:white; border-radius:6px;
-                padding:12px; text-align:center; margin:10px 0; }}
-  .net-block .label  {{ font-size:11px; letter-spacing:1px; }}
-  .net-block .amount {{ font-size:22px; font-weight:800; }}
-  .esp-block {{ background:#b91c1c; color:white; border-radius:6px;
-                padding:10px; text-align:center; }}
-  .esp-block .amount {{ font-size:18px; font-weight:700; }}
-  .footer {{ text-align:center; margin-top:20px; color:#666; font-size:11px; }}
-</style>
-</head>
-<body>
-<div class="header">
-  <h1>SONELGAZ — Facture de Consommation</h1>
-  <p>Générée le {datetime.now().strftime('%d/%m/%Y à %H:%M:%S')} | Smart-Grid v2.0</p>
-</div>
-<div class="client-box">
-  <p><strong>Nom :</strong> {info['nom']}</p>
-  <p><strong>N° Client :</strong> {client_id} &nbsp;&nbsp;
-     <strong>N° Facture :</strong> {info['facture']}</p>
-  <p><strong>Lieu :</strong> {info['lieu']}</p>
-</div>
-<h3>Electricite — {conso_elec:.2f} kWh</h3>
-<table>
-  <tr><th>Tranche</th><th>Quantite (kWh)</th><th>Prix (DA/kWh)</th><th>Montant HT (DA)</th></tr>
-  {"".join(f'<tr><td>{t["tranche"]}</td><td>{t["qte"]:.2f}</td><td>{t["prix"]:.4f}</td><td>{t["mt"]:.2f}</td></tr>' for t in f['data_elec'])}
-  <tr class="tfoot-row">
-    <td colspan="3">Sous-Total Electricite HT</td>
-    <td>{f['ht_elec']:.2f}</td>
-  </tr>
-</table>
-<h3>Gaz — {conso_gaz:.2f} Th</h3>
-<table>
-  <tr><th>Tranche</th><th>Quantite (Th)</th><th>Prix (DA/Th)</th><th>Montant HT (DA)</th></tr>
-  {"".join(f'<tr><td>{t["tranche"]}</td><td>{t["qte"]:.2f}</td><td>{t["prix"]:.4f}</td><td>{t["mt"]:.2f}</td></tr>' for t in f['data_gaz'])}
-  <tr class="tfoot-row">
-    <td colspan="3">Sous-Total Gaz HT</td>
-    <td>{f['ht_gaz']:.2f}</td>
-  </tr>
-</table>
-<div class="summary-grid">
-  <div class="tax-box">
-    <h3>Taxes et Redevances</h3>
-    {"".join(f'<p>{k} : <strong>{v:.2f} DA</strong></p>' for k, v in f['taxes'].items())}
-    <p><strong>Total Taxes : {f['total_taxes']:.2f} DA</strong></p>
-  </div>
-  <div class="recap-box">
-    <h3>Recapitulatif Financier</h3>
-    <p>Total HT Electricite : <strong>{f['ht_elec']:.2f} DA</strong></p>
-    <p>Total HT Gaz : <strong>{f['ht_gaz']:.2f} DA</strong></p>
-    <p>Total HT : <strong>{f['total_ht']:.2f} DA</strong></p>
-    <p>Total Taxes : <strong>{f['total_taxes']:.2f} DA</strong></p>
-    <div class="net-block">
-      <div class="label">NET A PAYER TTC</div>
-      <div class="amount">{f['net_ttc']:,.2f} DA</div>
-    </div>
-    <div class="esp-block">
-      <div class="label" style="font-size:11px;">TOTAL ESPECES (timbre inclus)</div>
-      <div class="amount">{f['total_especes']:,.2f} DA</div>
-    </div>
-  </div>
-</div>
-<div class="footer">
-  Document genere automatiquement par Smart-Grid SONELGAZ v2.0 — {datetime.now().year}
-</div>
-</body></html>"""
+    # Construire les lignes de tableaux SÉPARÉMENT (évite f-strings imbriqués)
+    rows_elec = ""
+    for t in f['data_elec']:
+        rows_elec += (
+            f'<tr><td>{t["tranche"]}</td>'
+            f'<td>{t["qte"]:.2f}</td>'
+            f'<td>{t["prix"]:.4f}</td>'
+            f'<td>{t["mt"]:.2f}</td></tr>'
+        )
+
+    rows_gaz = ""
+    for t in f['data_gaz']:
+        rows_gaz += (
+            f'<tr><td>{t["tranche"]}</td>'
+            f'<td>{t["qte"]:.2f}</td>'
+            f'<td>{t["prix"]:.4f}</td>'
+            f'<td>{t["mt"]:.2f}</td></tr>'
+        )
+
+    rows_taxes = ""
+    for k, v in f['taxes'].items():
+        rows_taxes += f'<p>{k} : <strong>{v:.2f} DA</strong></p>'
+
+    date_generation  = datetime.now().strftime('%d/%m/%Y a %H:%M:%S')
+    annee_courante   = datetime.now().year
+    nom_fichier_date = datetime.now().strftime('%Y%m%d_%H%M')
+
+    facture_html_export = (
+        '<!DOCTYPE html><html><head><meta charset="utf-8"><style>'
+        'body{font-family:Arial,sans-serif;color:#1a1a2e;margin:0;padding:20px}'
+        '.header{background:#004a99;color:white;padding:20px;text-align:center;border-radius:8px;margin-bottom:20px}'
+        '.header h1{margin:0;font-size:22px}'
+        '.header p{margin:4px 0 0 0;font-size:13px;color:#a0d4ff}'
+        '.client-box{background:#f0f6ff;border-left:5px solid #004a99;padding:14px;margin-bottom:20px;border-radius:0 8px 8px 0}'
+        '.client-box p{margin:4px 0;font-size:13px}'
+        'h3{color:#004a99;border-bottom:2px solid #004a99;padding-bottom:4px;font-size:15px}'
+        'table{width:100%;border-collapse:collapse;margin-bottom:18px;font-size:13px}'
+        'th{background:#005bb5;color:white;padding:9px 12px;text-align:left}'
+        'td{padding:8px 12px;border-bottom:1px solid #dce8f5}'
+        'tr:nth-child(even){background:#f7fbff}'
+        '.tf td{background:#e8f0fe;font-weight:bold;color:#004a99}'
+        '.sg{display:flex;gap:20px}'
+        '.tb,.rb{flex:1;background:#f0f6ff;border:1px solid #c0d8f0;border-radius:8px;padding:14px}'
+        '.rb p{margin:5px 0;font-size:13px}'
+        '.nb{background:#004a99;color:white;border-radius:6px;padding:12px;text-align:center;margin:10px 0}'
+        '.nb .lb{font-size:11px;letter-spacing:1px}'
+        '.nb .am{font-size:22px;font-weight:800}'
+        '.eb{background:#b91c1c;color:white;border-radius:6px;padding:10px;text-align:center}'
+        '.eb .am{font-size:18px;font-weight:700}'
+        '.ft{text-align:center;margin-top:20px;color:#666;font-size:11px}'
+        '</style></head><body>'
+
+        '<div class="header">'
+        '<h1>SONELGAZ - Facture de Consommation</h1>'
+        f'<p>Generee le {date_generation} | Smart-Grid v2.0</p>'
+        '</div>'
+
+        '<div class="client-box">'
+        f'<p><strong>Nom :</strong> {info["nom"]}</p>'
+        f'<p><strong>N Client :</strong> {client_id} &nbsp;&nbsp; <strong>N Facture :</strong> {info["facture"]}</p>'
+        f'<p><strong>Lieu :</strong> {info["lieu"]}</p>'
+        '</div>'
+
+        f'<h3>Electricite - {conso_elec:.2f} kWh</h3>'
+        '<table>'
+        '<tr><th>Tranche</th><th>Quantite (kWh)</th><th>Prix (DA/kWh)</th><th>Montant HT (DA)</th></tr>'
+        + rows_elec +
+        f'<tr class="tf"><td colspan="3">Sous-Total Electricite HT</td><td>{f["ht_elec"]:.2f}</td></tr>'
+        '</table>'
+
+        f'<h3>Gaz - {conso_gaz:.2f} Th</h3>'
+        '<table>'
+        '<tr><th>Tranche</th><th>Quantite (Th)</th><th>Prix (DA/Th)</th><th>Montant HT (DA)</th></tr>'
+        + rows_gaz +
+        f'<tr class="tf"><td colspan="3">Sous-Total Gaz HT</td><td>{f["ht_gaz"]:.2f}</td></tr>'
+        '</table>'
+
+        '<div class="sg">'
+        '<div class="tb">'
+        '<h3>Taxes et Redevances</h3>'
+        + rows_taxes +
+        f'<p><strong>Total Taxes : {f["total_taxes"]:.2f} DA</strong></p>'
+        '</div>'
+        '<div class="rb">'
+        '<h3>Recapitulatif Financier</h3>'
+        f'<p>Total HT Electricite : <strong>{f["ht_elec"]:.2f} DA</strong></p>'
+        f'<p>Total HT Gaz : <strong>{f["ht_gaz"]:.2f} DA</strong></p>'
+        f'<p>Total HT : <strong>{f["total_ht"]:.2f} DA</strong></p>'
+        f'<p>Total Taxes : <strong>{f["total_taxes"]:.2f} DA</strong></p>'
+        '<div class="nb">'
+        '<div class="lb">NET A PAYER TTC</div>'
+        f'<div class="am">{f["net_ttc"]:,.2f} DA</div>'
+        '</div>'
+        '<div class="eb">'
+        '<div class="lb" style="font-size:11px;">TOTAL ESPECES (timbre inclus)</div>'
+        f'<div class="am">{f["total_especes"]:,.2f} DA</div>'
+        '</div>'
+        '</div>'
+        '</div>'
+
+        f'<div class="ft">Document genere automatiquement par Smart-Grid SONELGAZ v2.0 - {annee_courante}</div>'
+        '</body></html>'
+    )
 
     st.markdown("#### 📥 Télécharger la Facture")
     c1, c2 = st.columns(2)
+
     with c1:
         st.download_button(
             label="📄 Télécharger HTML",
             data=facture_html_export,
-            file_name=f"facture_{client_id}_{datetime.now().strftime('%Y%m%d_%H%M')}.html",
+            file_name=f"facture_{client_id}_{nom_fichier_date}.html",
             mime="text/html",
             use_container_width=True
         )
@@ -1021,12 +1040,13 @@ def page_facturation(client_id: str, info: dict):
             st.download_button(
                 label="📑 Télécharger PDF",
                 data=gen_pdf(facture_html_export),
-                file_name=f"facture_{client_id}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                file_name=f"facture_{client_id}_{nom_fichier_date}.pdf",
                 mime="application/pdf",
                 use_container_width=True
             )
         else:
             st.info("📦 `pip install xhtml2pdf` pour activer l'export PDF")
+
 
 
 
